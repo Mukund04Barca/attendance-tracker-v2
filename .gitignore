@@ -47,6 +47,7 @@ desktop.ini
 
 # Temporary and Data Files
 *.txt
+!requirements.txt
 *.xlsx
 
 # Distribution / packaging
