@@ -1,0 +1,844 @@
+{% extends "base.html" %}
+{% load attendance_extras %}
+
+{% block title %}Monthly Roster | Precision Time{% endblock %}
+{% block nav_month_active %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --card-bg: rgba(255, 255, 255, 0.04);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-hover-border: rgba(0, 245, 255, 0.4);
+    --today-bg: rgba(0, 245, 255, 0.1);
+    --today-border: rgba(0, 245, 255, 0.6);
+    --text-dim: #7F8CA3;
+    --text-mid: #D7E0EE;
+    --text-bright: #F8FAFC;
+    --cyan: #38DDF8;
+    --emerald: #34D399;
+  }
+
+  .roster-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 26px;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .month-title {
+    font-size: 2.5rem;
+    font-weight: 900;
+    letter-spacing: -1.5px;
+    margin: 0;
+    background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.4) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .stats-strip {
+    display: flex;
+    gap: 24px;
+    margin-top: 8px;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stat-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+
+  .stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--cyan);
+  }
+
+  /* Grid Layout */
+  .glass-roster {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+    perspective: 1000px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(15, 23, 42, 0.26)),
+      rgba(3, 7, 18, 0.24);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      0 24px 58px rgba(0, 0, 0, 0.34);
+  }
+
+  .dow-header {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    padding: 10px 0;
+    text-transform: uppercase;
+  }
+
+  .day-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 14px;
+    min-height: 132px;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 14px 28px rgba(0,0,0,0.22);
+  }
+
+  .day-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    border-color: var(--card-hover-border);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 245, 255, 0.1);
+  }
+
+  .day-card.other-month {
+    opacity: 0.2;
+    filter: grayscale(1);
+    pointer-events: none;
+  }
+
+  .day-card.today {
+    background: var(--today-bg);
+    border: 1px solid var(--today-border);
+    box-shadow: 0 0 30px rgba(0, 245, 255, 0.1);
+  }
+
+  .day-card.holiday {
+    border-color: rgba(255, 165, 0, 0.3);
+  }
+
+  .day-num {
+    font-size: 1.42rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text-bright);
+    opacity: 0.8;
+  }
+
+  .today .day-num {
+    color: var(--cyan);
+    opacity: 1;
+    text-shadow: 0 0 10px rgba(0, 245, 255, 0.5);
+  }
+
+  .day-content {
+    margin-top: auto;
+    padding-top: 14px;
+  }
+
+  .time-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+    min-width: 0;
+  }
+
+  .time-row span:first-child {
+    flex: 0 0 auto;
+  }
+
+  .time-row span:last-child {
+    color: var(--text-mid);
+    font-weight: 600;
+    font-size: 0.72rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hours-pill {
+    margin-top: 9px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .hours-bar {
+    height: 100%;
+    background: var(--emerald);
+    box-shadow: 0 0 10px var(--emerald);
+    border-radius: 2px;
+    transition: width 1s ease-out;
+  }
+
+  .total-tag {
+    margin-top: 7px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--emerald);
+    letter-spacing: 0.5px;
+    text-align: right;
+    line-height: 1;
+  }
+
+  .holiday-tag {
+    position: absolute;
+    top: 12px;
+    right: 10px;
+    font-size: 0.55rem;
+    font-weight: 900;
+    color: #ffa500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Controls */
+  .btn-nav-round {
+    width: 42px;
+    height: 40px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(15,23,42,0.38));
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #fff;
+    transition: all 0.3s;
+    text-decoration: none;
+    font-size: 1rem;
+    font-weight: 900;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.26);
+  }
+
+  .btn-nav-round:hover {
+    background: var(--cyan);
+    border-color: var(--cyan);
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 245, 255, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .roster-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .export-report-btn {
+    min-height: 40px;
+    border-radius: 11px;
+    padding: 9px 16px;
+    box-shadow: 0 12px 28px rgba(37, 99, 235, 0.24);
+  }
+
+  .empty-day {
+    margin-top: auto;
+    color: rgba(255, 255, 255, 0.28);
+    text-align: center;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  @media (max-width: 1200px) {
+    .glass-roster {
+      grid-template-columns: repeat(7, minmax(112px, 1fr));
+      overflow-x: auto;
+    }
+  }
+
+  /* Modal Styling */
+  #action-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 2, 10, 0.9);
+    backdrop-filter: blur(12px);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-content {
+    background: #0a0f1e;
+    border: 1px solid rgba(0, 245, 255, 0.2);
+    border-radius: 20px;
+    padding: 30px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+  }
+
+  .modal-header h3 { font-weight: 800; color: #fff; margin: 0; }
+  .modal-header p { font-size: 0.8rem; color: var(--text-dim); }
+
+  .form-group { margin-bottom: 20px; }
+  .form-label { display: block; font-size: 0.65rem; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; }
+  .form-control { 
+    background: rgba(255,255,255,0.05); 
+    border: 1px solid rgba(255,255,255,0.1); 
+    color: #fff; 
+    border-radius: 10px; 
+    padding: 12px;
+    width: 100%;
+    font-size: 1rem;
+  }
+  .form-control:focus { border-color: var(--cyan); box-shadow: 0 0 15px rgba(0,245,255,0.1); outline: none; }
+
+  .day-card.weekend {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.04);
+  }
+  .day-card.weekend .day-num { opacity: 0.6; }
+
+  @keyframes pulse-today {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 245, 255, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(0, 245, 255, 0); }
+  }
+  .day-card.today {
+    animation: pulse-today 2s infinite;
+    border-color: var(--today-border);
+  }
+
+  @media (max-width: 768px) {
+    /* ── Header ── */
+    .roster-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+    .month-title { font-size: 1.5rem; }
+    .month-progress-container { width: 100% !important; margin-top: 8px; }
+    .stats-grid { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 6px !important; margin-top: 10px !important; }
+    .metric-card { padding: 8px 6px !important; border-radius: 10px !important; text-align: center; }
+    .metric-card > div:first-child { font-size: 0.5rem !important; }
+    .metric-card > div:last-child { font-size: 1rem !important; }
+
+    /* ── Actions row ── */
+    .roster-actions { width: 100%; justify-content: space-between; gap: 6px; flex-wrap: nowrap; }
+    .export-report-btn { display: none !important; }
+    .date-picker-group select.form-control { font-size: 0.8rem !important; padding: 6px 4px !important; }
+
+    /* ── Calendar grid ── */
+    .glass-roster { grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 6px; border-radius: 14px; overflow: hidden; }
+    .dow-header { font-size: 0.55rem; letter-spacing: 0; padding: 5px 0; }
+
+    /* ── Day cards — bigger touch targets ── */
+    .day-card { min-height: 52px; padding: 5px 3px; border-radius: 8px; cursor: pointer; transition: transform 0.1s, background 0.2s; }
+    .day-card:hover { transform: none; box-shadow: none; }
+    .day-card:active { transform: scale(0.92); }
+    .day-num { font-size: 0.82rem !important; font-weight: 700; }
+    .today-badge { display: none; }
+
+    /* ── Hide text, keep progress bar ── */
+    .time-row { display: none !important; }
+    .day-content { padding-top: 2px; }
+    .total-tag { display: none !important; }
+    .hours-pill { margin-top: 3px; height: 3px; }
+    .holiday-tag { font-size: 0.45rem; top: 3px; right: 2px; letter-spacing: 0; }
+
+    /* ── Status tints (applied by JS) ── */
+    .day-card.mob-present { background: rgba(52,211,153,0.14) !important; border-color: rgba(52,211,153,0.3) !important; }
+    .day-card.mob-partial  { background: rgba(245,158,11,0.14) !important; border-color: rgba(245,158,11,0.3) !important; }
+    .day-card.mob-absent   { background: rgba(239,68,68,0.09) !important;  border-color: rgba(239,68,68,0.2) !important; }
+
+    /* ── Bottom-sheet modal ── */
+    #action-modal { align-items: flex-end !important; justify-content: center !important; padding: 0 !important; }
+    .modal-content {
+      width: 100% !important;
+      max-width: 100% !important;
+      border-radius: 20px 20px 0 0 !important;
+      padding: 16px 20px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .form-control { font-size: 1rem; padding: 14px; }
+    .quick-presets { flex-wrap: wrap !important; }
+    .preset-btn { font-size: 0.8rem !important; padding: 8px 14px !important; }
+  }
+
+  @media (max-width: 400px) {
+    .glass-roster { gap: 2px; padding: 4px; }
+    .day-card { min-height: 44px; padding: 4px 2px; }
+    .day-num { font-size: 0.72rem !important; }
+    .dow-header { font-size: 0.48rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="action-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+     background: rgba(0, 2, 10, 0.8); backdrop-filter: blur(8px); z-index: 10000; 
+     align-items: center; justify-content: center;">
+  
+  <div class="modal-content" style="
+       background: #0a0f1e; border: 1px solid rgba(0, 245, 255, 0.2); border-radius: 20px; 
+       padding: 24px; width: 100%; max-width: 420px;
+       transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+    
+    <div style="width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin: 0 auto 20px;"></div>
+    
+    <div class="modal-header" style="margin-bottom: 20px; text-align: center;">
+      <h3 id="modal-date" style="margin: 0; font-size: 1.25rem; color: #fff;">Date</h3>
+      <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-dim);">Quick Attendance Action</p>
+    </div>
+    
+    <div class="quick-presets" style="display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 4px;">
+      <button type="button" onclick="fillPreset('09:00', '18:00')" class="preset-btn" 
+              style="white-space: nowrap; padding: 6px 12px; background: rgba(56, 221, 248, 0.1); border: 1px solid rgba(56, 221, 248, 0.3); color: var(--cyan); border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
+        Standard Day (9-6)
+      </button>
+      <button type="button" onclick="fillPreset('09:00', '13:00')" class="preset-btn" 
+              style="white-space: nowrap; padding: 6px 12px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); color: #f59e0b; border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
+        Half Day (9-1)
+      </button>
+      <button type="button" onclick="fillPreset('', '')" class="preset-btn" 
+              style="white-space: nowrap; padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-dim); border-radius: 6px; font-size: 0.75rem; cursor: pointer;">
+        Clear
+      </button>
+    </div>
+
+    <form id="edit-form" method="POST" style="display: flex; flex-direction: column; gap: 16px;">
+      {% csrf_token %}
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Check-in</label>
+          <input type="time" name="check_in" id="input-in" class="form-control">
+        </div>
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Check-out</label>
+          <input type="time" name="check_out" id="input-out" class="form-control">
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <button type="submit" class="btn btn-primary" style="flex: 1; padding: 12px; background: var(--cyan); color: #000; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">
+          Save Record
+        </button>
+        <button type="button" onclick="closeModal()" class="btn btn-outline-light" style="padding: 12px 16px; background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 8px; cursor: pointer;">
+          Cancel
+        </button>
+      </div>
+      
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); gap: 10px;">
+        <div style="display: flex; gap: 10px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <select name="leave_kind" style="background:#0f172a;border:1px solid rgba(245,158,11,0.3);border-radius:6px;color:#f1f5f9;font-size:0.75rem;padding:5px 10px;cursor:pointer;-webkit-appearance:auto;">
+              <option value="Casual Leave"    style="background:#0f172a;color:#f1f5f9;">Casual Leave</option>
+              <option value="Sick Leave"      style="background:#0f172a;color:#f1f5f9;">Sick Leave</option>
+              <option value="Earned Leave"    style="background:#0f172a;color:#f1f5f9;">Earned Leave</option>
+              <option value="Paternity Leave" style="background:#0f172a;color:#f1f5f9;">Paternity Leave</option>
+              <option value="Loss of Pay"     style="background:#0f172a;color:#f1f5f9;">Loss of Pay</option>
+            </select>
+            <button type="submit" name="action" value="leave" style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);color:#f59e0b;font-size:0.75rem;cursor:pointer;border-radius:6px;padding:4px 10px;">
+              🏖️ Mark Leave
+            </button>
+          </div>
+          {% comment %}Take Comp-Off — shown only when comp-offs are available AND this day is NOT already a comp-off leave{% endcomment %}
+          <button type="submit" name="action" id="btn-consume-compoff" value="consume_compoff"
+            style="background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.25);color:#a78bfa;font-size:0.75rem;cursor:pointer;border-radius:6px;padding:4px 10px;display:{% if monthly_summary.available_compoffs > 0 %}inline-flex{% else %}none{% endif %};">
+            🎟️ Take Comp-Off
+          </button>
+
+          {% comment %}Cancel Comp-Off — shown only when this specific day has a consumed comp-off{% endcomment %}
+          <button type="submit" name="action" value="cancel_compoff"
+            id="btn-cancel-compoff"
+            style="background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.2);color:#f43f5e;font-size:0.75rem;cursor:pointer;border-radius:6px;padding:4px 10px;display:none;"
+            onclick="return confirm('Cancel comp-off for this day? It will be returned to your balance.')">
+            ↩ Cancel Comp-Off
+          </button>
+
+          {% comment %}Two Saturday options — shown when Saturday is eligible (6h+){% endcomment %}
+          <button type="submit" name="action" id="btn-claim-compoff" value="claim_compoff"
+            style="background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);color:#34d399;font-size:0.75rem;cursor:pointer;border-radius:6px;padding:4px 10px;display:none;"
+            title="Bank this Saturday as a comp-off day to use as leave later">
+            🏦 Bank as Comp-Off
+          </button>
+
+          {% comment %}Remove comp-off — shown when Saturday already has EARNED status{% endcomment %}
+          <button type="submit" name="action" id="btn-unclaim-compoff" value="unclaim_compoff"
+            style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:#f59e0b;font-size:0.75rem;cursor:pointer;border-radius:6px;padding:4px 10px;display:none;"
+            title="Remove comp-off and take pay for this Saturday instead"
+            onclick="return confirm('Remove comp-off and get paid for this Saturday instead?')">
+            💰 Take Pay Instead
+          </button>
+        </div>
+        <button type="submit" name="action" value="delete" onclick="return confirm('Delete this record permanently?')" class="btn btn-link" style="background: none; border: none; color: #ef4444; font-size: 0.8rem; cursor: pointer; text-decoration: none; padding: 0;">
+          🗑️ Delete
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="roster-header">
+  <div>
+    <h1 class="month-title">{{ current|date:"F Y" }}</h1>
+    <!-- Month Progress Indicator -->
+    <div class="month-progress-container" style="margin-top: 12px; width: 220px; max-width: 100%;">
+      <div class="progress-track" style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+        <div class="progress-fill" style="width: {{ monthly_summary.bank_progress_percent|default:50 }}%; 
+             height: 100%; 
+             background: linear-gradient(90deg, var(--cyan), var(--emerald)); 
+             transition: width 1s ease;">
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-dim); margin-top: 4px;">
+        <span>{{ monthly_summary.total_hours_display }} worked</span>
+        <span>{{ monthly_summary.target_hours_display }} tgt</span>
+      </div>
+    </div>
+    
+    <div class="stats-grid" style="display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap;">
+      <div class="metric-card" style="background: rgba(56, 221, 248, 0.08); border: 1px solid rgba(56, 221, 248, 0.2); padding: 12px 20px; border-radius: 12px;">
+        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);">Total Logged</div>
+        <div style="font-size: 1.4rem; font-weight: 800; color: var(--cyan);">{{ monthly_summary.total_hours_display }}</div>
+      </div>
+      
+      <div class="metric-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px 20px; border-radius: 12px;">
+        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);">Target</div>
+        <div style="font-size: 1.4rem; font-weight: 700; color: var(--text-mid);">{{ monthly_summary.target_hours_display }}</div>
+      </div>
+      
+      <div class="metric-card" style="background: {% if monthly_summary.extra_hours_in_hand >= 0 %}rgba(52, 211, 153, 0.08){% else %}rgba(255, 71, 87, 0.08){% endif %}; 
+           border: 1px solid {% if monthly_summary.extra_hours_in_hand >= 0 %}rgba(52, 211, 153, 0.3){% else %}rgba(255, 71, 87, 0.3){% endif %}; 
+           padding: 12px 20px; border-radius: 12px;">
+        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);">Balance</div>
+        <div style="font-size: 1.4rem; font-weight: 800; color: {% if monthly_summary.extra_hours_in_hand >= 0 %}var(--emerald){% else %}#ff4757{% endif %};">
+          {% if monthly_summary.extra_hours_in_hand >= 0 %}+{% endif %}{{ monthly_summary.extra_hours_display }}
+        </div>
+      </div>
+
+      <div class="metric-card" style="background: rgba(167, 139, 250, 0.08); border: 1px solid rgba(167, 139, 250, 0.3); padding: 12px 20px; border-radius: 12px;">
+        <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);">Available Comp-offs</div>
+        <div style="font-size: 1.4rem; font-weight: 800; color: #a78bfa;">{{ monthly_summary.available_compoffs|default:0 }}</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="roster-actions">
+    <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn-nav-round" aria-label="Previous month">&larr;</a>
+    
+    <div class="date-picker-group" style="display: flex; gap: 8px;">
+      <select id="month-select" class="form-control" style="width: auto; padding: 8px;">
+        <option value="1" {% if current.month == 1 %}selected{% endif %}>Jan</option>
+        <option value="2" {% if current.month == 2 %}selected{% endif %}>Feb</option>
+        <option value="3" {% if current.month == 3 %}selected{% endif %}>Mar</option>
+        <option value="4" {% if current.month == 4 %}selected{% endif %}>Apr</option>
+        <option value="5" {% if current.month == 5 %}selected{% endif %}>May</option>
+        <option value="6" {% if current.month == 6 %}selected{% endif %}>Jun</option>
+        <option value="7" {% if current.month == 7 %}selected{% endif %}>Jul</option>
+        <option value="8" {% if current.month == 8 %}selected{% endif %}>Aug</option>
+        <option value="9" {% if current.month == 9 %}selected{% endif %}>Sep</option>
+        <option value="10" {% if current.month == 10 %}selected{% endif %}>Oct</option>
+        <option value="11" {% if current.month == 11 %}selected{% endif %}>Nov</option>
+        <option value="12" {% if current.month == 12 %}selected{% endif %}>Dec</option>
+      </select>
+      <select id="year-select" class="form-control" style="width: auto; padding: 8px;">
+        <option value="{{ current.year|add:'-1' }}">{{ current.year|add:"-1" }}</option>
+        <option value="{{ current.year }}" selected>{{ current.year }}</option>
+        <option value="{{ current.year|add:'1' }}">{{ current.year|add:"1" }}</option>
+      </select>
+    </div>
+    
+    <a href="{% url 'month_calendar' %}" class="btn-nav-round btn-today" title="Go to Today" style="font-size:1.2rem;">&#8982;</a>
+    <a href="?year={{ next_year }}&month={{ next_month }}" class="btn-nav-round" aria-label="Next month">&rarr;</a>
+    
+    <a href="{% url 'month_excel_export' %}?year={{ current.year }}&month={{ current.month }}" class="btn btn-primary export-report-btn d-flex align-items-center gap-2">
+      Export Excel
+    </a>
+  </div>
+</div>
+
+<div class="glass-roster">
+  <!-- Weekday Headers -->
+  <div class="dow-header">Mon</div>
+  <div class="dow-header">Tue</div>
+  <div class="dow-header">Wed</div>
+  <div class="dow-header">Thu</div>
+  <div class="dow-header">Fri</div>
+  <div class="dow-header" style="color: rgba(255, 165, 0, 0.6);">Sat</div>
+  <div class="dow-header" style="color: rgba(255, 71, 87, 0.6);">Sun</div>
+
+  {% for week in weeks %}
+    {% for cell in week %}
+      <div class="day-card 
+           {% if not cell.is_current_month %}other-month{% endif %} 
+           {% if cell.date == today %}today{% endif %} 
+           {% if cell.is_holiday %}holiday{% endif %}
+           {% if cell.record.is_leave %}leave{% endif %}
+           {% if cell.date.weekday >= 5 %}weekend{% endif %}"
+           data-date="{{ cell.date|date:'Y-m-d' }}"
+           data-pretty="{{ cell.date|date:'d M Y' }}"
+           data-in="{{ cell.record.check_in|default:'' }}"
+           data-out="{{ cell.record.check_out|default:'' }}"
+           data-is-leave="{% if cell.record.is_leave %}true{% endif %}"
+           data-is-claimable="{% if cell.record.is_compoff_claimable %}true{% endif %}"
+           data-compoff-status="{{ cell.record.compoff_status|default:'' }}"
+           data-leave-type="{{ cell.record.leave_type|default:'' }}"
+           data-is-weekend="{% if cell.date.weekday >= 5 %}true{% endif %}"
+           data-weekday="{{ cell.date.weekday }}"
+           tabindex="0" role="button" aria-label="Edit attendance for {{ cell.date|date:'d M Y' }}">
+        
+        <div class="day-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <span class="day-num" style="{% if cell.date.weekday == 6 %}color: #ff6b6b;{% endif %}">{{ cell.date.day }}</span>
+          {% if cell.date == today %}
+            <span class="today-badge" style="font-size: 0.5rem; background: var(--cyan); color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 800;">TODAY</span>
+          {% endif %}
+        </div>
+        
+        {% if cell.is_holiday %}
+          <div class="holiday-tag">{{ cell.holiday_name|default:"Holiday" }}</div>
+        {% elif cell.record.compoff_status == "earned" %}
+          <div class="holiday-tag" style="color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.1); padding: 1px 4px; border-radius: 4px;" title="Comp-off banked — open to change">🏦 BANKED</div>
+        {% elif cell.record.compoff_status == "consumed" %}
+          <div class="holiday-tag" style="color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); background: rgba(167, 139, 250, 0.1); padding: 1px 4px; border-radius: 4px;">COMP-OFF</div>
+        {% elif cell.record.is_leave %}
+          <div class="holiday-tag" style="color: #5b8def;">LEAVE</div>
+        {% elif cell.record.is_compoff_claimable %}
+          <div class="holiday-tag" style="color: #f59e0b; cursor: help;" title="Click to choose: bank comp-off or keep as paid Saturday">📋 CHOOSE</div>
+        {% endif %}
+
+        {% if cell.record %}
+          <div class="day-content">
+            {% if cell.record.is_leave %}
+              <div class="empty-day" style="color: #fca5a5; opacity: 1; margin-top: 10px;">
+                <span style="font-size: 1.2rem; display: block; margin-bottom: 2px;">🏖️</span>
+                <span style="font-size: 0.65rem; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">On Leave</span>
+              </div>
+            {% else %}
+              <div class="time-row" style="margin-bottom: 4px;">
+                <span style="opacity: 0.6;">🡣</span>
+                <span style="font-weight: 600; color: var(--text-mid);">{{ cell.record.check_in|default:"—" }}</span>
+              </div>
+              <div class="time-row" style="margin-bottom: 4px;">
+                <span style="opacity: 0.6;">🡡</span>
+                <span style="font-weight: 600; color: var(--text-mid);">{{ cell.record.check_out|default:"—" }}</span>
+              </div>
+              
+              <div class="hours-pill" style="height: 3px; background: rgba(255,255,255,0.05); border-radius: 1.5px; overflow: hidden;">
+                <div class="hours-bar" data-pct="{{ cell.record.hours|percentage:9 }}" style="height: 100%; background: {% if cell.record.hours >= 9 %}var(--emerald){% elif cell.record.hours >= 7 %}#f59e0b{% else %}#ef4444{% endif %}; box-shadow: 0 0 8px {% if cell.record.hours >= 9 %}rgba(52,211,153,0.4){% elif cell.record.hours >= 7 %}rgba(245,158,11,0.4){% else %}rgba(239,68,68,0.4){% endif %};"></div>
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                <span style="font-size: 0.6rem; color: var(--text-dim);">{{ cell.record.hours_display }}</span>
+                {% if cell.record.hours >= 9 %}
+                  <span style="color: var(--emerald); font-size: 0.7rem;">✓</span>
+                {% endif %}
+              </div>
+            {% endif %}
+          </div>
+        {% elif cell.is_current_month and not cell.is_holiday %}
+          <div class="empty-day" style="margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0.4;">
+            <span style="font-size: 1.5rem; font-weight: 300;">+</span>
+            <span style="font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1px;">Add Entry</span>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  {% endfor %}
+</div>
+
+<script>
+  function fillPreset(inTime, outTime) {
+    document.getElementById('input-in').value = inTime;
+    document.getElementById('input-out').value = outTime;
+    document.querySelectorAll('.preset-btn').forEach(btn => btn.style.opacity = '0.6');
+    if(event && event.target) {
+      event.target.style.opacity = '1';
+      event.target.style.background = 'rgba(56, 221, 248, 0.2)';
+    }
+  }
+
+  function closeModal() {
+    const modal = document.getElementById('action-modal');
+    const content = modal.querySelector('.modal-content');
+    content.style.transform = 'translateY(100%)';
+    setTimeout(() => { modal.style.display = 'none'; }, 300);
+  }
+
+  // Keyboard and Jump navigation
+  document.getElementById('month-select')?.addEventListener('change', (e) => {
+    window.location.href = `?year={{ current.year }}&month=${e.target.value}`;
+  });
+  document.getElementById('year-select')?.addEventListener('change', (e) => {
+    window.location.href = `?year=${e.target.value}&month={{ current.month }}`;
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    let year = parseInt(urlParams.get('year')) || {{ current.year }};
+    let month = parseInt(urlParams.get('month')) || {{ current.month }};
+    if (e.key === 'ArrowLeft') { month--; if (month < 1) { month = 12; year--; } window.location.href = `?year=${year}&month=${month}`; }
+    else if (e.key === 'ArrowRight') { month++; if (month > 12) { month = 1; year++; } window.location.href = `?year=${year}&month=${month}`; }
+    else if (e.key === 't' || e.key === 'T') { window.location.href = '{% url "month_calendar" %}'; }
+  });
+
+  document.querySelectorAll('.hours-bar').forEach(bar => {
+    bar.style.width = bar.dataset.pct + '%';
+  });
+
+  document.querySelectorAll('.day-card').forEach(card => {
+    card.addEventListener('click', function(e) {
+      const date = this.dataset.date;
+      const pretty = this.dataset.pretty;
+      
+      const modalDate = document.getElementById('modal-date');
+      if (modalDate) modalDate.innerText = pretty;
+      
+      const editForm = document.getElementById('edit-form');
+      if (editForm) editForm.action = `/edit/${date}/`;
+      
+      const inputIn = document.getElementById('input-in');
+      const inputOut = document.getElementById('input-out');
+      if (inputIn) inputIn.value = this.dataset.in || '';
+      if (inputOut) inputOut.value = this.dataset.out || '';
+      
+      const modal = document.getElementById('action-modal');
+      const content = modal?.querySelector('.modal-content');
+      
+      if (modal && content) {
+        // Comp-off UI logic
+        const isClaimable   = this.dataset.isClaimable === 'true';
+        const compoffStatus = this.dataset.compoffStatus;
+        const isWeekend     = this.dataset.isWeekend === 'true';
+        const hasCheckIn    = !!this.dataset.in;
+        const isLeave       = this.dataset.isLeave === 'true';
+        const leaveTypeAttr = this.dataset.leaveType || '';
+        // Inject leave type into data attr for JS below
+        
+        const btnClaim    = document.getElementById('btn-claim-compoff');
+        const btnUnclaim  = document.getElementById('btn-unclaim-compoff');
+        const btnConsume  = document.getElementById('btn-consume-compoff');
+        const btnCancel   = document.getElementById('btn-cancel-compoff');
+
+        const hasBank        = parseInt('{{ monthly_summary.available_compoffs|default:0 }}') > 0;
+        const isCompOffLeave = (leaveTypeAttr === 'Comp-Off');
+        const isEarned       = (compoffStatus === 'earned');
+
+        // Saturday eligibility
+        const isSaturday = isWeekend && this.dataset.weekday === '5';
+        const SAT_TARGET = {{ saturday_hours_target|default:6 }};
+
+        // Read hours from already-populated inputs (they were filled above before this runs)
+        const inVal  = document.getElementById('input-in')?.value  || this.dataset.in  || '';
+        const outVal = document.getElementById('input-out')?.value || this.dataset.out || '';
+        let satHours = 0;
+        if (inVal && outVal) {
+          const [h1,m1] = inVal.split(':').map(Number);
+          const [h2,m2] = outVal.split(':').map(Number);
+          satHours = Math.max((h2*60+m2 - h1*60-m1) / 60, 0);
+        }
+        const effectivelyClaimable = isClaimable || (isSaturday && satHours >= SAT_TARGET);
+
+        // "🏦 Bank as Comp-Off" — show on any eligible Saturday (even if already banked — user can re-confirm)
+        if (btnClaim) {
+          btnClaim.style.display = effectivelyClaimable ? 'inline-flex' : 'none';
+          // If already earned, grey it out slightly so user knows current state
+          btnClaim.style.opacity = isEarned ? '0.5' : '1';
+          btnClaim.title = isEarned ? 'Already banked as comp-off' : 'Bank this Saturday as a comp-off day';
+        }
+
+        // "💰 Take Pay Instead" — show on any eligible Saturday so user always has the choice
+        if (btnUnclaim) {
+          btnUnclaim.style.display = effectivelyClaimable ? 'inline-flex' : 'none';
+          btnUnclaim.style.opacity = isEarned ? '1' : '0.5';
+          btnUnclaim.title = isEarned ? 'Remove comp-off and get paid for this Saturday' : 'Keep as paid Saturday (default)';
+        }
+
+        // "🎟️ Take Comp-Off" — workday, no entry, comp-offs in bank
+        if (btnConsume) {
+          btnConsume.style.display = (!isWeekend && !hasCheckIn && !isLeave && hasBank && !isCompOffLeave) ? 'inline-flex' : 'none';
+        }
+
+        // "↩ Cancel Comp-Off" — day already has comp-off leave taken
+        if (btnCancel) {
+          btnCancel.style.display = isCompOffLeave ? 'inline-flex' : 'none';
+        }
+
+        modal.style.display = 'flex';
+        setTimeout(() => { content.style.transform = 'translateY(0)'; }, 10);
+
+        // Re-evaluate comp-off button visibility live when user changes time inputs
+        const self = this;
+        const updateCompoffBtns = () => {
+          const inV  = document.getElementById('input-in')?.value  || '';
+          const outV = document.getElementById('input-out')?.value || '';
+          if (!inV || !outV) return;
+          const [h1,m1] = inV.split(':').map(Number);
+          const [h2,m2] = outV.split(':').map(Number);
+          const hrs = Math.max((h2*60+m2 - h1*60-m1) / 60, 0);
+          const nowClaimable = isSaturday && hrs >= SAT_TARGET;
+          if (btnClaim)   { btnClaim.style.display   = nowClaimable ? 'inline-flex' : 'none'; btnClaim.style.opacity   = isEarned ? '0.5' : '1'; }
+          if (btnUnclaim) { btnUnclaim.style.display = nowClaimable ? 'inline-flex' : 'none'; btnUnclaim.style.opacity = isEarned ? '1'   : '0.5'; }
+        };
+        document.getElementById('input-in')?.addEventListener('change',  updateCompoffBtns);
+        document.getElementById('input-out')?.addEventListener('change', updateCompoffBtns);
+      }
+    });
+
+    card.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') card.click();
+    });
+
+    card.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const xPercent = ((e.clientX - rect.left) / rect.width - 0.5) * 10;
+      const yPercent = ((e.clientY - rect.top) / rect.height - 0.5) * -10;
+      card.style.transform = `perspective(1000px) rotateY(${xPercent}deg) rotateX(${yPercent}deg) translateY(-4px) scale(1.02)`;
+    });
+    card.addEventListener('mouseleave', () => card.style.transform = '');
+  });
+
+  window.addEventListener('click', (e) => {
+    if (e.target.id === 'action-modal') closeModal();
+  });
+
+  // Apply status tints on mobile
+  function applyMobileColors() {
+    if (window.innerWidth > 768) return;
+    document.querySelectorAll('.day-card:not(.other-month)').forEach(card => {
+      const inTime = card.dataset.in;
+      const isLeave = card.dataset.isLeave === 'true';
+      const isWkd = card.classList.contains('weekend');
+      const isHol = card.classList.contains('holiday');
+      const isLve = card.classList.contains('leave');
+      if (isLve) { card.classList.add('mob-absent'); return; }
+      if (isWkd || isHol) return;
+      if (!inTime) {
+        // Workday with no record — mark absent
+        const dayNum = parseInt(card.dataset.date?.split('-')[2]);
+        const cardDate = new Date(card.dataset.date);
+        if (cardDate <= new Date()) card.classList.add('mob-absent');
+        return;
+      }
+      // Has check-in: check progress bar percentage
+      const bar = card.querySelector('.hours-bar');
+      const pct = bar ? parseFloat(bar.dataset.pct || 0) : 100;
+      card.classList.add(pct >= 95 ? 'mob-present' : 'mob-partial');
+    });
+  }
+  applyMobileColors();
+</script>
+{% endblock %}

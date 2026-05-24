@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+{% block title %}Leaves & Earnings{% endblock %}
+{% block nav_leaves_active %}active{% endblock %}
+{% block header_title %}Leaves & Earnings{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --cyan: #06b6d4; --emerald: #10b981; --amber: #f59e0b;
+    --danger: #f43f5e; --purple: #a78bfa; --text-bright: #f8fafc;
+    --glass: rgba(255,255,255,0.04); --glass-border: rgba(255,255,255,0.08);
+  }
+
+  /* ── Section card ── */
+  .section-card {
+    background: rgba(10,18,34,0.45); border: 1px solid var(--glass-border);
+    border-radius: 16px; padding: 24px 28px; margin-bottom: 24px;
+  }
+  .section-title {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--muted); margin-bottom: 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* ── Leave table ── */
+  .leave-table { width: 100%; border-collapse: collapse; }
+  .leave-table th {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--muted); font-weight: 600; padding: 8px 12px;
+    border-bottom: 1px solid var(--glass-border); text-align: left;
+  }
+  .leave-table td {
+    padding: 14px 12px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.03);
+    vertical-align: middle;
+  }
+  .leave-table tr:last-child td { border-bottom: none; }
+  .leave-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .avail-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  .avail-pos { background: rgba(16,185,129,0.12); color: var(--emerald); }
+  .avail-zero { background: rgba(148,163,184,0.1); color: var(--muted); }
+  .avail-neg { background: rgba(244,63,94,0.12); color: var(--danger); }
+
+  /* ── Inline edit row ── */
+  .edit-row { display: none; background: rgba(6,182,212,0.04); }
+  .edit-row.open { display: table-row; }
+  .edit-row td { padding: 16px 12px 20px; border-bottom: 1px solid rgba(6,182,212,0.15); }
+  .edit-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .edit-field label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--cyan); font-weight: 600; display: block; margin-bottom: 5px;
+  }
+  .edit-field input {
+    width: 100%; background: rgba(255,255,255,0.07); border: 1px solid rgba(6,182,212,0.25);
+    border-radius: 8px; color: white; padding: 9px 12px; font-size: 14px;
+  }
+  .edit-field input:focus { outline: none; border-color: rgba(6,182,212,0.6); }
+  .edit-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn-save-leave {
+    background: linear-gradient(135deg, var(--cyan), var(--emerald));
+    border: none; color: #020617; padding: 9px 22px; border-radius: 9px;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .btn-reset-leave {
+    background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.2);
+    color: var(--danger); padding: 8px 18px; border-radius: 9px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .btn-cancel-edit {
+    background: none; border: none; color: var(--muted); font-size: 13px;
+    cursor: pointer; padding: 8px 10px;
+  }
+  .edit-hint { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  /* ── Edit trigger button ── */
+  .btn-edit-leave {
+    background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.18);
+    color: var(--cyan); padding: 5px 12px; border-radius: 7px;
+    font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .btn-edit-leave:hover { background: rgba(6,182,212,0.15); }
+
+  /* ── Progress bar ── */
+  .lb-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+  .lb-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--cyan), var(--emerald)); }
+
+  /* ── Earnings ── */
+  .earn-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 14px;
+  }
+  .earn-row:last-child { border-bottom: none; }
+  .earn-label { color: var(--muted); }
+  .earn-val { font-weight: 700; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+  .earn-total { font-size: 22px; color: var(--emerald); }
+
+  /* ── Earnings config form ── */
+  .form-glass input, .form-glass select {
+    background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border);
+    border-radius: 8px; color: white; padding: 9px 12px; width: 100%; font-size: 14px;
+  }
+  .form-glass input:focus, .form-glass select:focus { outline: none; border-color: rgba(6,182,212,0.5); }
+  .form-glass label { font-size: 11px; text-transform: uppercase; color: var(--cyan); font-weight: 600; margin-bottom: 5px; display: block; }
+  .btn-save-earn {
+    background: linear-gradient(135deg, var(--cyan), var(--emerald)); border: none;
+    color: #020617; padding: 10px 28px; border-radius: 10px; font-weight: 700;
+    font-size: 14px; cursor: pointer; margin-top: 16px;
+  }
+
+  /* ── Year nav ── */
+  .year-nav { display: flex; align-items: center; gap: 12px; }
+  .year-btn {
+    width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.06);
+    border: 1px solid var(--glass-border); color: var(--text); cursor: pointer;
+    font-size: 14px; display: flex; align-items: center; justify-content: center;
+  }
+  .year-btn:hover { background: rgba(255,255,255,0.1); }
+
+  /* ── Toast ── */
+  @keyframes slideIn { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+  @keyframes slideOut { to { transform: translateX(100%); opacity:0; } }
+  .toast.hide { animation: slideOut 0.3s ease forwards; }
+
+  @media (max-width: 700px) {
+    .edit-grid { grid-template-columns: 1fr 1fr; }
+    .section-card { padding: 16px; }
+    .leave-table th:nth-child(3), .leave-table td:nth-child(3),
+    .leave-table th:nth-child(4), .leave-table td:nth-child(4) { display: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Toast messages -->
+<div id="toastContainer" style="position:fixed;top:20px;right:20px;z-index:1050;pointer-events:none;">
+  {% for message in messages %}
+  <div class="toast show" style="background:rgba(10,18,34,0.95);border:1px solid rgba(6,182,212,0.3);
+    color:white;padding:14px 22px;border-radius:12px;margin-bottom:10px;
+    backdrop-filter:blur(10px);animation:slideIn 0.3s ease;pointer-events:auto;font-size:14px;font-weight:600;">
+    {% if message.tags == 'success' %}<span style="color:var(--emerald);margin-right:8px;">✓</span>
+    {% elif message.tags == 'error' %}<span style="color:var(--danger);margin-right:8px;">✗</span>{% endif %}
+    {{ message }}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ── Leave Balances ─────────────────────────────────── -->
+<div class="section-card">
+  <div class="section-title">
+    <span>Leave Balances</span>
+    <div class="year-nav">
+      <a href="?year={{ year|add:'-1' }}" class="year-btn">‹</a>
+      <span style="font-size:15px;font-weight:700;color:var(--text-bright);">{{ year }}</span>
+      <a href="?year={{ year|add:'1' }}" class="year-btn">›</a>
+    </div>
+  </div>
+
+  <table class="leave-table">
+    <thead>
+      <tr>
+        <th>Leave Type</th>
+        <th>Available</th>
+        <th>Used</th>
+        <th>Entitled</th>
+        <th>Carry-over</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lb in balances %}
+      {% with avail=lb.available %}
+      <tr id="row-{{ lb.leave_type }}">
+        <td style="font-weight:600;">{{ lb.get_leave_type_display }}</td>
+        <td>
+          <span class="avail-pill {% if avail > 0 %}avail-pos{% elif avail == 0 %}avail-zero{% else %}avail-neg{% endif %}">
+            {{ avail }}
+          </span>
+          {% if lb.total_entitled > 0 %}
+          <div class="lb-bar" style="width:80px;margin-top:6px;">
+            <div class="lb-bar-fill" style="width:{% widthratio lb.used lb.total_entitled 100 %}%;"></div>
+          </div>
+          {% endif %}
+        </td>
+        <td style="color:var(--muted);">{{ lb.used }}</td>
+        <td style="color:var(--muted);">{{ lb.total_entitled }}</td>
+        <td style="color:var(--muted);">{{ lb.carried_over }}</td>
+        <td>
+          <button class="btn-edit-leave" onclick="toggleEdit('{{ lb.leave_type }}', {{ lb.total_entitled }}, {{ lb.used }}, {{ lb.carried_over }})">
+            ✏️ Edit
+          </button>
+        </td>
+      </tr>
+      <!-- Inline edit row -->
+      <tr class="edit-row" id="edit-{{ lb.leave_type }}">
+        <td colspan="6">
+          <form method="post" id="form-{{ lb.leave_type }}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit_leave">
+            <input type="hidden" name="leave_type" value="{{ lb.leave_type }}">
+            <div class="edit-grid">
+              <div class="edit-field">
+                <label>Entitled Days</label>
+                <input type="number" name="total_entitled" id="inp-entitled-{{ lb.leave_type }}"
+                       min="0" step="0.5" value="{{ lb.total_entitled }}"
+                       placeholder="e.g. 13.5">
+              </div>
+              <div class="edit-field">
+                <label>Used Days</label>
+                <input type="number" name="used" id="inp-used-{{ lb.leave_type }}"
+                       min="0" step="0.5" value="{{ lb.used }}"
+                       placeholder="e.g. 2">
+              </div>
+              <div class="edit-field">
+                <label>Carry-over</label>
+                <input type="number" name="carried_over" id="inp-carry-{{ lb.leave_type }}"
+                       min="0" step="0.5" value="{{ lb.carried_over }}"
+                       placeholder="e.g. 0">
+              </div>
+            </div>
+            <div class="edit-actions">
+              <button type="submit" class="btn-save-leave">Save Changes</button>
+              <button type="button" class="btn-cancel-edit" onclick="closeEdit('{{ lb.leave_type }}')">Cancel</button>
+              <button type="submit" form="form-reset-{{ lb.leave_type }}" class="btn-reset-leave"
+                onclick="return confirm('Reset {{ lb.get_leave_type_display }} to default values?')">
+                Reset to Default
+              </button>
+            </div>
+            <div class="edit-hint">
+              Available = Entitled + Carry-over − Used &nbsp;·&nbsp;
+              Currently: <strong id="preview-{{ lb.leave_type }}">{{ avail }}</strong>
+            </div>
+          </form>
+          <!-- Hidden reset form -->
+          <form method="post" id="form-reset-{{ lb.leave_type }}" style="display:none;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reset_leave">
+            <input type="hidden" name="leave_type" value="{{ lb.leave_type }}">
+          </form>
+        </td>
+      </tr>
+      {% endwith %}
+      {% empty %}
+      <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px;">
+        No leave balances for {{ year }}. <a href="?year={{ year }}" style="color:var(--cyan);">Refresh</a> to create them.
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Monthly Earnings ────────────────────────────────── -->
+<div class="section-card">
+  <div class="section-title">Earnings — {{ today|date:"F Y" }}</div>
+  <div class="earn-row">
+    <span class="earn-label">Weekdays worked</span>
+    <span class="earn-val">{{ earnings.weekday_days }} day{{ earnings.weekday_days|pluralize }} × ₹{{ earnings.config.daily_rate }}</span>
+  </div>
+  <div class="earn-row">
+    <span class="earn-label">Weekday earnings</span>
+    <span class="earn-val" style="color:var(--emerald);">₹{{ earnings.weekday_earnings }}</span>
+  </div>
+  {% if earnings.saturday_days > 0 %}
+  <div class="earn-row">
+    <span class="earn-label">Saturday worked</span>
+    <span class="earn-val">
+      {{ earnings.saturday_days }} day{{ earnings.saturday_days|pluralize }}
+      {% if earnings.config.saturday_mode == "comp_off" %}→ Comp-Off{% else %}× ₹{{ earnings.config.saturday_rate }}{% endif %}
+    </span>
+  </div>
+  <div class="earn-row">
+    <span class="earn-label">Saturday earnings</span>
+    <span class="earn-val" style="color:{% if earnings.config.saturday_mode == 'comp_off' %}var(--amber){% else %}var(--emerald){% endif %};">
+      {% if earnings.config.saturday_mode == "comp_off" %}Comp-Off issued{% else %}₹{{ earnings.saturday_earnings }}{% endif %}
+    </span>
+  </div>
+  {% endif %}
+  {% if earnings.lop_days > 0 %}
+  <div class="earn-row">
+    <span class="earn-label">Loss of Pay deduction</span>
+    <span class="earn-val" style="color:var(--danger);">− ₹{{ earnings.lop_deduction }}</span>
+  </div>
+  {% endif %}
+  <div class="earn-row" style="padding-top:14px;">
+    <span style="font-size:15px;font-weight:700;">Total Earnings</span>
+    <span class="earn-val earn-total">₹{{ earnings.total_earnings }}</span>
+  </div>
+</div>
+
+<!-- ── Earnings Configuration ─────────────────────────── -->
+<div class="section-card">
+  <div class="section-title">Configure Your Earnings</div>
+  <form method="post" class="form-glass">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_earnings">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;flex-wrap:wrap;">
+      <div>
+        <label>Daily Rate (₹ / weekday)</label>
+        <input type="number" name="daily_rate" value="{{ config.daily_rate }}" min="0" step="0.01">
+      </div>
+      <div>
+        <label>Saturday Mode</label>
+        <select name="saturday_mode" id="satModeSelect" onchange="toggleSatRate(this.value)">
+          <option value="pay"      {% if config.saturday_mode == "pay"      %}selected{% endif %}>Pay</option>
+          <option value="comp_off" {% if config.saturday_mode == "comp_off" %}selected{% endif %}>Comp-Off (no pay)</option>
+        </select>
+      </div>
+      <div id="satRateField" {% if config.saturday_mode == "comp_off" %}style="opacity:0.4;pointer-events:none;"{% endif %}>
+        <label>Saturday Rate (₹)</label>
+        <input type="number" name="saturday_rate" value="{{ config.saturday_rate }}" min="0" step="0.01">
+      </div>
+    </div>
+    <button type="submit" class="btn-save-earn">Save Configuration</button>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // ── Toggle inline edit row ──────────────────────────────
+  function toggleEdit(type, entitled, used, carry) {
+    // Close any other open rows first
+    document.querySelectorAll('.edit-row.open').forEach(r => {
+      if (r.id !== 'edit-' + type) r.classList.remove('open');
+    });
+    const row = document.getElementById('edit-' + type);
+    const isOpen = row.classList.contains('open');
+    if (isOpen) {
+      row.classList.remove('open');
+      return;
+    }
+    // Set values
+    document.getElementById('inp-entitled-' + type).value = entitled;
+    document.getElementById('inp-used-'     + type).value = used;
+    document.getElementById('inp-carry-'    + type).value = carry;
+    updatePreview(type);
+    row.classList.add('open');
+    // Scroll edit row into view
+    row.scrollIntoView({behavior:'smooth', block:'nearest'});
+
+    // Live preview as user types
+    ['entitled','used','carry'].forEach(f => {
+      const el = document.getElementById(`inp-${f}-${type}`);
+      if (el) el.addEventListener('input', () => updatePreview(type));
+    });
+  }
+
+  function closeEdit(type) {
+    document.getElementById('edit-' + type).classList.remove('open');
+  }
+
+  function updatePreview(type) {
+    const e = parseFloat(document.getElementById('inp-entitled-' + type).value) || 0;
+    const u = parseFloat(document.getElementById('inp-used-'     + type).value) || 0;
+    const c = parseFloat(document.getElementById('inp-carry-'    + type).value) || 0;
+    const avail = Math.round((e + c - u) * 100) / 100;
+    const el = document.getElementById('preview-' + type);
+    if (el) {
+      el.textContent = avail;
+      el.style.color = avail > 0 ? 'var(--emerald)' : avail < 0 ? 'var(--danger)' : 'var(--muted)';
+    }
+  }
+
+  // ── Saturday rate field toggle ──────────────────────────
+  function toggleSatRate(mode) {
+    const field = document.getElementById('satRateField');
+    if (mode === 'comp_off') {
+      field.style.opacity = '0.4';
+      field.style.pointerEvents = 'none';
+    } else {
+      field.style.opacity = '1';
+      field.style.pointerEvents = 'auto';
+    }
+  }
+
+  // ── Auto-dismiss toasts ─────────────────────────────────
+  setTimeout(() => {
+    document.querySelectorAll('.toast').forEach(t => {
+      t.classList.add('hide');
+      setTimeout(() => t.remove(), 300);
+    });
+  }, 4000);
+</script>
+{% endblock %}

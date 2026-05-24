@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+
+{% block title %}Precision Time — Enterprise Dashboard{% endblock %}
+{% block nav_today_active %}active{% endblock %}
+{% block header_title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --glass: rgba(255,255,255,0.04);
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-highlight: rgba(255,255,255,0.12);
+    --cyan: #06b6d4;
+    --emerald: #10b981;
+    --sapphire: #2563eb;
+    --sapphire-glow: rgba(37,99,235,0.25);
+    --text-bright: #f8fafc;
+  }
+
+  /* 3D Scene Wrapper */
+  .cinematic-container {
+    perspective: 1200px;
+    padding: 10px;
+  }
+
+  /* Hero Card - 3D Parallax */
+  .hero-card-3d {
+    background:
+      linear-gradient(155deg, rgba(255,255,255,0.08) 0%, rgba(10, 18, 34, 0.34) 46%, rgba(255,255,255,0.02) 100%),
+      radial-gradient(circle at 88% 12%, rgba(16,185,129,0.16), transparent 30%);
+    backdrop-filter: blur(30px);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    padding: 36px 40px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+    transform: translateZ(30px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      inset 0 -1px 0 rgba(255,255,255,0.03),
+      0 28px 70px rgba(0,0,0,0.34),
+      0 0 42px rgba(6,182,212,0.06);
+    transition: transform 0.1s ease-out;
+  }
+
+  .hero-card-3d::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(6,182,212,0.6), rgba(16,185,129,0.4), transparent);
+  }
+
+  .hero-card-3d .hero-title {
+    font-size: 42px; font-weight: 900; letter-spacing: -1.5px;
+    background: linear-gradient(135deg, var(--cyan) 0%, var(--emerald) 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 8px; line-height: 1.1;
+    filter: drop-shadow(0 0 30px rgba(6,182,212,0.3));
+  }
+
+  .hero-card-3d .hero-subtitle { font-size: 14px; color: var(--muted); font-weight: 400; max-width: 500px; line-height: 1.6; }
+
+  /* Interactive Stats */
+  .hero-stats { display: flex; gap: 40px; margin-top: 28px; }
+  .hero-stat-value {
+    font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+    color: var(--text-bright); font-variant-numeric: tabular-nums;
+  }
+  .hero-stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; }
+  
+  .hero-stat-change { font-size: 11px; font-weight: 600; margin-top: 4px; }
+  .up { color: var(--emerald); }
+  .down { color: #f43f5e; }
+
+  /* Action Buttons */
+  .action-deck {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  .btn-cinematic {
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    border: 1px solid var(--glass-border);
+    background: var(--glass);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    min-height: 46px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 10px 22px rgba(0,0,0,0.22);
+  }
+
+  .btn-cinematic-primary {
+    background: linear-gradient(135deg, var(--cyan), var(--emerald));
+    border: none;
+    color: #020617;
+    box-shadow: 0 10px 30px rgba(6,182,212,0.3);
+  }
+
+  .btn-cinematic-primary:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 15px 40px rgba(6,182,212,0.5);
+  }
+
+  .btn-cinematic-danger {
+    background: rgba(244, 63, 94, 0.1);
+    color: #f43f5e;
+    border-color: rgba(244, 63, 94, 0.2);
+  }
+
+  .btn-cinematic-danger:hover {
+    background: rgba(244, 63, 94, 0.2);
+    transform: translateY(-2px);
+  }
+
+  /* Grid Layout */
+  .grid-system { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 24px; }
+
+  .card-3d {
+    background:
+      linear-gradient(155deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.018) 100%),
+      rgba(10, 18, 34, 0.42);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+    transform: translateZ(15px);
+  }
+
+  .card-3d:hover {
+    transform: translateZ(25px) translateY(-5px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.08),
+      0 15px 50px rgba(37,99,235,0.12);
+    border-color: rgba(6,182,212,0.3);
+  }
+
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .card-title { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
+  .card-badge {
+    font-size: 9px; padding: 3px 8px; border-radius: 6px; font-weight: 600; letter-spacing: 0.5px;
+    background: rgba(6,182,212,0.12); color: var(--cyan); border: 1px solid rgba(6,182,212,0.15);
+  }
+
+  .card-value { font-size: 32px; font-weight: 800; letter-spacing: -1px; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+  .card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* Sparkline Placeholder */
+  .sparkline { margin-top: 14px; height: 40px; display: flex; align-items: flex-end; gap: 3px; }
+  .spark-bar {
+    flex: 1; border-radius: 2px 2px 0 0; min-height: 4px;
+    background: linear-gradient(to top, rgba(6,182,212,0.2), rgba(6,182,212,0.6));
+    transition: height 0.5s ease;
+  }
+
+  /* Table Section */
+  .grid-split { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+
+  .chrono-card {
+    background: rgba(13, 20, 37, 0.4);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 24px;
+  }
+
+  .chrono-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  .chrono-table th {
+    text-align: left; font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--muted); padding: 12px 8px; border-bottom: 2px solid var(--glass-border);
+  }
+  .chrono-table td {
+    padding: 14px 8px; font-size: 13px; font-weight: 500; color: var(--text);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+  .status-active { background: var(--emerald); box-shadow: 0 0 10px var(--emerald); }
+  .status-offline { background: var(--muted); }
+
+  /* Manual Entry Pulse */
+  .pulse-border {
+    animation: borderPulse 2s infinite;
+  }
+  @keyframes borderPulse {
+    0% { border-color: rgba(6,182,212,0.2); }
+    50% { border-color: rgba(6,182,212,0.5); }
+    100% { border-color: rgba(6,182,212,0.2); }
+  }
+
+  /* Modal Refresh */
+  .modal-content.glass {
+    background: rgba(10, 15, 30, 0.85);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    color: white;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-card-3d,
+    .card-3d,
+    .btn-cinematic,
+    .spark-bar {
+      transition: none !important;
+      animation: none !important;
+      transform: none !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cinematic-container">
+  <!-- 3D Parallax Hero Card -->
+  <div class="hero-card-3d" id="heroCard">
+    <div class="hero-title">Precision Time</div>
+    <div class="hero-subtitle">
+      Welcome back, <strong>{{ request.user.username }}</strong>. 
+      {% if record.check_in %}
+        Your session started at <span style="color: var(--cyan)">{{ check_in_display }}</span>.
+      {% else %}
+        Ready to start tracking for {{ today|date:"l, d F" }}?
+      {% endif %}
+    </div>
+
+    <!-- Active Session Stats -->
+    <div class="hero-stats">
+      <div>
+        <div class="hero-stat-value">{% if hours_today %}{{ hours_today }}h{% else %}0.0h{% endif %}</div>
+        <div class="hero-stat-label">Session Duration</div>
+        {% if record.check_in %}
+        <div class="hero-stat-change up pulse">● Active now</div>
+        {% else %}
+        <div class="hero-stat-change down">● Inactive</div>
+        {% endif %}
+      </div>
+      <div>
+        <div class="hero-stat-value">{{ weekly_total }}h</div>
+        <div class="hero-stat-label">Weekly Progress</div>
+        <div class="hero-stat-change up">↑ Target: {{ weekly_target }}h</div>
+      </div>
+      <div>
+        <div class="hero-stat-value">{{ week_completed_days }}/{{ week_recorded_days }}</div>
+        <div class="hero-stat-label">Completed Days</div>
+        <div class="hero-stat-change {% if week_completion_percent == 100 %}up{% else %}down{% endif %}">{{ week_completion_percent }}% closed</div>
+      </div>
+    </div>
+
+    <!-- Actions Deck -->
+    <div class="action-deck">
+      {% if not record.check_in %}
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" name="action" value="check_in" class="btn-cinematic btn-cinematic-primary" aria-label="Check in for today">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Start Session
+          </button>
+        </form>
+      {% elif not record.check_out %}
+        <form method="post">
+          {% csrf_token %}
+          <button type="submit" name="action" value="check_out" class="btn-cinematic btn-cinematic-danger" aria-label="Check out for today">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            End Session
+          </button>
+        </form>
+      {% endif %}
+      
+      <button type="button" class="btn-cinematic" data-bs-toggle="modal" data-bs-target="#manualEntryModal">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit Time
+      </button>
+
+      {% if record.check_in %}
+        <a href="{% url 'timesheet' %}" class="btn-cinematic">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Open Timesheet
+        </a>
+      {% endif %}
+    </div>
+
+    {% if expected_checkout and not record.check_out %}
+    <div style="margin-top:20px; padding:12px; background:rgba(6, 182, 212, 0.05); border-radius:10px; border:1px solid rgba(6, 182, 212, 0.15); font-size:0.85rem; color:var(--cyan);">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px;vertical-align:middle;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Suggested checkout to meet {{ daily_target_hours }}h: <strong>{{ expected_checkout }}</strong>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Perspective Analytics Grid -->
+  <div class="grid-system">
+    <div class="card-3d">
+      <div class="card-header">
+        <div class="card-title">Week Intensity</div>
+        <div class="card-badge">Real-time</div>
+      </div>
+      <div class="card-value">{{ weekly_total }}h</div>
+      <div class="card-sub">{{ weekly_total_percent }}% of weekly target achieved</div>
+      <div class="sparkline" id="sparkIntensity"></div>
+    </div>
+
+    <div class="card-3d" style="border-color: rgba(37,99,235,0.15); box-shadow: 0 8px 40px var(--sapphire-glow);">
+      <div class="card-header">
+        <div class="card-title">System Status</div>
+        <div class="card-badge" style="background:rgba(37,99,235,0.1); color:var(--sapphire); border-color:var(--sapphire-glow);">Synced</div>
+      </div>
+      <div class="card-value">Online</div>
+      <div class="card-sub">All background workers operational</div>
+      <div class="sparkline" id="sparkStatus"></div>
+    </div>
+
+    <div class="card-3d">
+      <div class="card-header">
+        <div class="card-title">Week Completion</div>
+        <div class="card-badge" style="color:var(--emerald); background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.2);">Actual</div>
+      </div>
+      <div class="card-value">{{ week_completion_percent }}<span style="font-size:16px; color:var(--muted);">%</span></div>
+      <div class="card-sub">{{ week_completed_days }} of {{ week_recorded_days }} recorded days checked out</div>
+      <div class="sparkline" id="sparkAccuracy"></div>
+    </div>
+  </div>
+
+  <!-- Logs & Activity -->
+  <div class="grid-split">
+    <!-- Chrono Logs -->
+    <div class="chrono-card">
+      <div class="card-header">
+        <div class="card-title">Recent Attendance</div>
+        <div style="display:flex;gap:6px;">
+          <span class="card-badge">Daily Feed</span>
+        </div>
+      </div>
+      <table class="chrono-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Check-in</th>
+            <th>Check-out</th>
+            <th>Duration</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if record.check_in %}
+          <tr>
+            <td style="color: var(--cyan); font-weight:700;">Today</td>
+            <td>{{ check_in_display }}</td>
+            <td>{{ check_out_display|default:"—" }}</td>
+            <td>{% if hours_today %}{{ hours_today }}h{% else %}—{% endif %}</td>
+            <td>
+              <span class="status-dot {% if record.check_out %}status-offline{% else %}status-active{% endif %}"></span>
+              {% if record.check_out %}Terminated{% else %}Active{% endif %}
+            </td>
+          </tr>
+          {% endif %}
+          {% for r in recent_records %}
+          <tr>
+            <td>{{ r.date|date:"d M" }}</td>
+            <td>{{ r.check_in|time:"H:i" }}</td>
+            <td>{{ r.check_out|time:"H:i" }}</td>
+            <td>{{ r.hours_display }}</td>
+            <td><span class="status-dot status-offline"></span>Terminated</td>
+          </tr>
+          {% empty %}
+            {% if not record.check_in %}
+            <tr>
+              <td colspan="5" style="text-align:center; padding: 40px; color: var(--muted);">
+                No recent attendance records yet.
+              </td>
+            </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Upcoming Holidays -->
+    <div class="card-3d">
+      <div class="card-header">
+        <div class="card-title">Pipeline Calendar</div>
+        <div class="card-badge">Upcoming</div>
+      </div>
+      <div id="activityFeed">
+        {% for holiday in upcoming_holidays %}
+        <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
+          <div style="width:40px; height:40px; border-radius:10px; background:rgba(6,182,212,0.1); color:var(--cyan); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0;">
+            {{ holiday.date|date:"d" }}
+          </div>
+          <div>
+            <div style="font-size:13px; font-weight:600;">{{ holiday.name }}</div>
+            <div style="font-size:10px; color:var(--muted);">{{ holiday.date|date:"l, F Y" }}</div>
+          </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center; padding:20px; color:var(--muted); font-size: 13px;">
+          No upcoming holidays.
+        </div>
+        {% endfor %}
+      </div>
+      <a href="{% url 'holiday_list' %}" style="display:block; text-align:center; color:var(--cyan); font-size:11px; text-decoration:none; margin-top:10px; font-weight:600;">View Holiday Calendar -></a>
+    </div>
+  </div>
+</div>
+
+<!-- Manual Entry Modal -->
+<div class="modal fade" id="manualEntryModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content glass" style="border-radius:20px; border:1px solid var(--border-hi);">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title" style="font-weight:800; letter-spacing:-0.5px;">Edit Attendance Time</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <div class="modal-body">
+          <p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px;">
+            Update your check-in or check-out time when the recorded time needs correction.
+          </p>
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label" style="font-size:11px; text-transform:uppercase; color:var(--cyan); font-weight:700;">Check-in</label>
+              <input type="time" name="manual_check_in" class="form-control bg-dark text-white border-secondary" 
+                     value="{{ check_in_display }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:11px; text-transform:uppercase; color:var(--cyan); font-weight:700;">Check-out</label>
+              <input type="time" name="manual_check_out" class="form-control bg-dark text-white border-secondary" 
+                     value="{{ check_out_display }}">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" name="action" value="set_manual" class="btn-cinematic btn-cinematic-primary" style="padding: 8px 24px;">Save Time</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Hero Card Parallax
+  const heroCard = document.getElementById('heroCard');
+  const allowMotion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (allowMotion) {
+    document.addEventListener('mousemove', (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 2;
+      const y = (e.clientY / window.innerHeight - 0.5) * 2;
+      if (heroCard) {
+        heroCard.style.transform = `translateZ(30px) rotateX(${-y * 5}deg) rotateY(${x * 5}deg)`;
+      }
+    });
+  }
+
+  // Sparklines Generator
+  function createSparkline(id) {
+    const container = document.getElementById(id);
+    if (!container) return;
+    for (let i = 0; i < 15; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'spark-bar';
+      bar.style.height = Math.random() * 80 + 20 + '%';
+      container.appendChild(bar);
+    }
+  }
+  createSparkline('sparkIntensity');
+  createSparkline('sparkStatus');
+  createSparkline('sparkAccuracy');
+
+  // Sparkline animation
+  if (allowMotion) {
+    setInterval(() => {
+      document.querySelectorAll('.spark-bar').forEach(bar => {
+        bar.style.height = Math.random() * 80 + 20 + '%';
+      });
+    }, 3000);
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Analytics | Attendance{% endblock %}
+{% block nav_week_active %}active{% endblock %}
+{% block header_title %}Weekly Analytics{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root {
+    --wa-accent: #1D9E75;
+    --wa-accent-soft: rgba(29, 158, 117, 0.15);
+  }
+
+  .wa-hero {
+    background: linear-gradient(135deg, rgba(29, 158, 117, 0.12), rgba(17, 24, 39, 0.8));
+    border: 1px solid var(--surface-border);
+    border-radius: var(--border-radius-xl);
+    padding: 32px;
+    margin-bottom: 32px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 24px;
+  }
+
+  .wa-stat-card {
+    text-align: center;
+    border-right: 1px solid var(--surface-border);
+    padding: 10px;
+  }
+
+  .wa-stat-card:last-child { border-right: none; }
+
+  .wa-stat-val {
+    font-size: 2.5rem;
+    font-weight: 800;
+    font-family: var(--display-font);
+    line-height: 1;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .wa-stat-val.blue { color: #3B82F6; }
+  .wa-stat-val.green { color: var(--wa-accent); }
+  .wa-stat-val.amber { color: #F59E0B; }
+  .wa-stat-val.purple { color: #A78BFA; }
+
+  .wa-stat-lbl {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  /* Progress */
+  .wa-progress-card {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--border-radius-lg);
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+
+  .wa-progress-top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--text);
+  }
+
+  .wa-progress-track {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .wa-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3B82F6, var(--wa-accent));
+    box-shadow: 0 0 20px rgba(29, 158, 117, 0.3);
+    border-radius: 100px;
+    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Grid Area */
+  .wa-day-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .wa-day-card {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--border-radius-lg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .wa-day-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--wa-accent);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .wa-day-card.today { border-color: rgba(59, 130, 246, 0.5); background: rgba(59, 130, 246, 0.03); }
+
+  .wa-day-name { font-size: 0.7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+  .wa-day-date { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+  
+  .wa-day-hrs { font-size: 2rem; font-weight: 800; font-family: var(--display-font); color: var(--text); line-height: 1; }
+  .wa-day-hrs.green { color: var(--wa-accent); }
+  .wa-day-hrs.amber { color: #F59E0B; }
+  
+  .wa-day-sub { font-size: 0.75rem; color: var(--muted); margin-top: 8px; text-align: center; }
+
+  .wa-badge { font-size: 0.65rem; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; margin-top: 12px; }
+  .wa-badge.met { background: var(--wa-accent); color: white; }
+  .wa-badge.short { background: rgba(239, 68, 68, 0.1); color: #F87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+  .wa-badge.holiday { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
+
+  /* Table */
+  .wa-table-card {
+    background: var(--surface);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--border-radius-xl);
+    overflow: hidden;
+  }
+
+  .wa-table-head { background: rgba(255, 255, 255, 0.02); padding: 16px 24px; font-weight: 800; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--surface-border); }
+  
+  .wa-table { width: 100%; border-collapse: collapse; }
+  .wa-table th, .wa-table td { padding: 16px 24px; text-align: left; border-bottom: 1px solid var(--surface-border); font-size: 0.85rem; }
+  .wa-table th { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; }
+  .wa-table tbody tr:hover { background: rgba(255, 255, 255, 0.01); }
+
+  .wa-table-card { max-height: 600px; overflow-y: auto; position: relative; }
+  .wa-table thead { position: sticky; top: 0; z-index: 10; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); }
+  .wa-table thead th { border-bottom: 2px solid var(--surface-border); }
+
+  .wa-day-card:hover .day-actions { opacity: 1; }
+
+  @media (max-width: 768px) {
+    .wa-hero {
+      grid-template-columns: 1fr 1fr;
+      padding: 20px 16px;
+      gap: 16px;
+    }
+    .wa-stat-card { border-right: none !important; border-bottom: 1px solid var(--surface-border); padding: 12px 8px; }
+    .wa-stat-card:last-child, .wa-stat-card:nth-child(even) { border-bottom: none; }
+    .wa-stat-val { font-size: 1.75rem; }
+    .wa-day-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .wa-day-hrs { font-size: 1.5rem; }
+    /* Table: let it scroll horizontally */
+    .wa-table-card { overflow-x: auto; }
+    .wa-table th, .wa-table td { padding: 12px 12px; font-size: 0.8rem; }
+    /* Hide less important columns */
+    .wa-table th:nth-child(6), .wa-table td:nth-child(6) { display: none; } /* Variance */
+  }
+
+  @media (max-width: 480px) {
+    .wa-hero { grid-template-columns: 1fr 1fr; padding: 16px 12px; }
+    .wa-stat-val { font-size: 1.4rem; }
+    .wa-day-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .wa-day-card { padding: 14px 10px; }
+    .wa-hero { margin-bottom: 20px; }
+    /* Stack table tighter */
+    .wa-table th:nth-child(3), .wa-table td:nth-child(3),
+    .wa-table th:nth-child(4), .wa-table td:nth-child(4) { display: none; } /* Clock-in / Clock-out */
+  }
+
+  @media print {
+    .wa-hero, .wa-progress-card { break-inside: avoid; }
+    .wa-day-grid { display: table; width: 100%; }
+    .wa-day-card { display: table-cell; border: 1px solid #ddd; }
+    body { background: white !important; color: black !important; }
+    .btn-commander { display: none !important; }
+    .wa-table-card { overflow: visible; max-height: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+  <div>
+    <h1 style="font-size:2rem; font-weight:800; margin:0; font-family:var(--display-font);">Weekly Executive Summary</h1>
+    <p style="color:var(--muted); margin:4px 0 0;">Analysis for the period: {{ start_date|date:"d M" }} — {{ end_date|date:"d M Y" }}</p>
+  </div>
+  <a href="{% url 'month_excel_export' %}" class="btn-commander btn-commander-primary" style="text-decoration:none; padding:10px 24px; font-size:0.85rem;">⬇ Export Analysis</a>
+</div>
+
+{% if summary.rows %}
+
+<!-- ── Analytics Multi-Stat ── -->
+<div class="wa-hero">
+  <div class="wa-stat-card">
+    <div class="wa-stat-val blue">{{ summary.weekly_total }}</div>
+    <div class="wa-stat-lbl">Accumulated Hours</div>
+  </div>
+  <div class="wa-stat-card">
+    <div class="wa-stat-val amber">{{ summary.weekly_avg }}</div>
+    <div class="wa-stat-lbl">Daily Efficiency</div>
+  </div>
+  <div class="wa-stat-card">
+    <div class="wa-stat-val green">{{ weekly_target }}</div>
+    <div class="wa-stat-lbl">Weekly Roadmap</div>
+  </div>
+  <div class="wa-stat-card">
+    {% if summary.weekly_total >= weekly_target %}
+    <div class="wa-stat-val green">✓</div>
+    <div class="wa-stat-lbl">Milestone Met</div>
+    {% else %}
+    <div class="wa-stat-val purple">{{ weekly_target|floatformat:0 }}h</div>
+    <div class="wa-stat-lbl">Shortfall to Target</div>
+    {% endif %}
+  </div>
+  <div class="wa-stat-card" style="border-right:none;">
+    <div class="wa-stat-val" style="font-size:1.8rem; color:var(--muted);">
+      {% if summary.weekly_total >= weekly_target %}↑{% else %}↓{% endif %}
+      --%
+    </div>
+    <div class="wa-stat-lbl">vs Target</div>
+  </div>
+</div>
+
+<!-- ── Progress with Trend ── -->
+<div class="wa-progress-card">
+  <div class="wa-progress-top">
+    <span>Cycle Progress</span>
+    <span style="display:flex; align-items:center; gap:8px;">
+      <span id="trendSpark" style="display:inline-flex; align-items:flex-end; height:20px; gap:2px;"></span>
+      {{ summary.weekly_total }} / {{ weekly_target }}h
+    </span>
+  </div>
+  <div class="wa-progress-track">
+    {% widthratio summary.weekly_total weekly_target 100 as wpct %}
+    <div class="wa-progress-fill" id="weeklyProgressBar" style="width: 0%;" data-target="{% if wpct > 100 %}100{% else %}{{ wpct|default:0 }}{% endif %}"></div>
+  </div>
+  <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.75rem; color:var(--muted);">
+    <span>Mon</span>
+    <span>Wed</span>
+    <span>Fri</span>
+  </div>
+</div>
+
+<script>
+// Animate progress bar on load
+setTimeout(() => {
+  const bar = document.getElementById('weeklyProgressBar');
+  if (bar) bar.style.width = bar.dataset.target + '%';
+}, 300);
+
+// Generate trend sparkline from row data
+const dailyHours = [
+  {% for row in summary.rows %}
+    {{ row.total_with_allowance|default:0 }}{% if not forloop.last %},{% endif %}
+  {% endfor %}
+];
+const spark = document.getElementById('trendSpark');
+if(spark) {
+  const maxH = Math.max(...dailyHours, 9);
+  dailyHours.forEach(h => {
+    const bar = document.createElement('span');
+    bar.style.cssText = `width:4px; background:${h >= 9 ? '#1D9E75' : '#EF4444'}; border-radius:1px; opacity:0.8;`;
+    bar.style.height = (h/maxH * 100) + '%';
+    spark.appendChild(bar);
+  });
+}
+</script>
+
+<!-- ── Day Insight Grid ── -->
+<div class="wa-day-grid">
+  {% for row in summary.rows %}
+  <a href="{% url 'timesheet' %}?year={{ row.date|date:'Y' }}&month={{ row.date|date:'n' }}#day{{ row.date|date:'j' }}" class="wa-day-card" style="text-decoration:none; cursor:pointer;">
+    
+    <!-- Hover Actions -->
+    <div class="day-actions" style="position:absolute; top:8px; right:8px; opacity:0; transition:opacity 0.2s; background:rgba(15,23,42,0.9); border:1px solid var(--surface-border); border-radius:8px; padding:4px; display:flex; gap:4px;">
+      <button tabindex="-1" onclick="window.location.href='{% url 'month_calendar' %}?year={{ row.date|date:'Y' }}&month={{ row.date|date:'n' }}'; return false;" style="background:transparent; border:none; color:var(--wa-accent); font-size:0.8rem; padding:4px 8px; text-decoration:none;">✎</button>
+    </div>
+
+    <div class="wa-day-name">{{ row.date|date:"D" }}</div>
+    <div class="wa-day-date">{{ row.date|date:"d M" }}</div>
+    
+    {% if row.leave_type %}
+      <div class="wa-day-hrs" style="color:#EF4444; font-size:1.5rem;">LEAVE</div>
+      <div class="wa-badge short">Out of Office</div>
+    {% elif row.is_holiday %}
+      <div class="wa-day-hrs amber">🏖</div>
+      <div class="wa-badge holiday">Comp. Holiday</div>
+    {% elif row.date|date:"D" == "Sat" or row.date|date:"D" == "Sun" %}
+      <div class="wa-day-hrs" style="color:var(--muted); font-size:1.25rem;">OFF</div>
+      <div class="wa-day-sub">Weekend Break</div>
+    {% elif row.check_in_time %}
+      <div class="wa-day-hrs {% if row.total_with_allowance >= 9 %}green{% else %}blue{% endif %}">{{ row.total_with_allowance|floatformat:1 }}h</div>
+      <div class="wa-day-sub">{{ row.check_in_time }} — {{ row.check_out_time }}</div>
+      {% if row.total_with_allowance >= 9 %}
+        <div class="wa-badge met">Target Met</div>
+      {% else %}
+        <div class="wa-badge short">Short Session</div>
+      {% endif %}
+    {% else %}
+      <div class="wa-day-hrs" style="color:rgba(255,255,255,0.05);">—</div>
+      <div class="wa-day-sub">No activity logged</div>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- ── Advanced Breakdown ── -->
+<div class="wa-table-card">
+  <div class="wa-table-head">Enterprise Transaction Log</div>
+  <div class="table-responsive">
+    <table class="wa-table">
+      <thead>
+        <tr>
+          <th>Date Cycle</th>
+          <th>Session Status</th>
+          <th>Clock-in</th>
+          <th>Clock-out</th>
+          <th>Duration</th>
+          <th>Variance</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in summary.rows %}
+        <tr>
+          <td>
+            <div style="font-weight:700; color:var(--text);">{{ row.date|date:"d M Y" }}</div>
+            <div style="font-size:0.75rem; color:var(--muted);">{{ row.date|date:"l" }}</div>
+          </td>
+          <td>
+            {% if row.leave_type %}<span style="color:#EF4444; font-weight:700;">[ LEAVE ]</span>
+            {% elif row.is_holiday %}<span style="color:#F59E0B; font-weight:700;">[ HOLIDAY ]</span>
+            {% elif row.check_in_time %}
+              {% if row.total_with_allowance >= 9 %}<span style="color:var(--wa-accent); font-weight:700;">ACTIVE: MET</span>
+              {% else %}<span style="color:#F87171;">ACTIVE: SHORT</span>{% endif %}
+            {% else %}<span style="color:rgba(255,255,255,0.1);">DORMANT</span>{% endif %}
+          </td>
+          <td style="color:var(--wa-accent); font-weight:700;">{{ row.check_in_time|default:"—" }}</td>
+          <td style="color:#3B82F6; font-weight:700;">{{ row.check_out_time|default:"—" }}</td>
+          <td>{{ row.hours|floatformat:2 }}h</td>
+          <td style="color:#A78BFA; font-weight:700;">+{{ row.allowance_hours|floatformat:2 }}h</td>
+          <td><strong style="font-size:1.1rem; color:var(--text);">{{ row.total_with_allowance|floatformat:2 }}h</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<div style="text-align:center; padding:80px 40px; background:var(--surface); border-radius:var(--border-radius-xl); border:1px solid var(--surface-border);">
+  <div style="font-size:4rem; margin-bottom:24px;">📈</div>
+  <h2 style="font-family:var(--display-font); font-weight:800;">Analytics Engine Idle</h2>
+  <p style="color:var(--muted); max-width:400px; margin:16px auto 24px;">No data points available for the current weekly cycle. Start logging your sessions to activate the intelligence engine.</p>
+  <a href="{% url 'checkin_checkout' %}" class="btn-commander btn-commander-primary" style="text-decoration:none; display:inline-block;">Launch Dashboard</a>
+</div>
+{% endif %}
+
+{% endblock %}
