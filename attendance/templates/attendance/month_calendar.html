@@ -203,17 +203,6 @@
     line-height: 1;
   }
 
-  .holiday-tag {
-    position: absolute;
-    top: 12px;
-    right: 10px;
-    font-size: 0.55rem;
-    font-weight: 900;
-    color: #ffa500;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
   /* Controls */
   .btn-nav-round {
     width: 42px;
@@ -326,7 +315,6 @@
   }
 
   @media (max-width: 768px) {
-    /* ── Header ── */
     .roster-header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
     .month-title { font-size: 1.5rem; }
     .month-progress-container { width: 100% !important; margin-top: 8px; }
@@ -334,36 +322,23 @@
     .metric-card { padding: 8px 6px !important; border-radius: 10px !important; text-align: center; }
     .metric-card > div:first-child { font-size: 0.5rem !important; }
     .metric-card > div:last-child { font-size: 1rem !important; }
-
-    /* ── Actions row ── */
     .roster-actions { width: 100%; justify-content: space-between; gap: 6px; flex-wrap: nowrap; }
     .export-report-btn { display: none !important; }
     .date-picker-group select.form-control { font-size: 0.8rem !important; padding: 6px 4px !important; }
-
-    /* ── Calendar grid ── */
     .glass-roster { grid-template-columns: repeat(7, 1fr); gap: 3px; padding: 6px; border-radius: 14px; overflow: hidden; }
     .dow-header { font-size: 0.55rem; letter-spacing: 0; padding: 5px 0; }
-
-    /* ── Day cards — bigger touch targets ── */
     .day-card { min-height: 52px; padding: 5px 3px; border-radius: 8px; cursor: pointer; transition: transform 0.1s, background 0.2s; }
     .day-card:hover { transform: none; box-shadow: none; }
     .day-card:active { transform: scale(0.92); }
     .day-num { font-size: 0.82rem !important; font-weight: 700; }
     .today-badge { display: none; }
-
-    /* ── Hide text, keep progress bar ── */
     .time-row { display: none !important; }
     .day-content { padding-top: 2px; }
     .total-tag { display: none !important; }
     .hours-pill { margin-top: 3px; height: 3px; }
-    .holiday-tag { font-size: 0.45rem; top: 3px; right: 2px; letter-spacing: 0; }
-
-    /* ── Status tints (applied by JS) ── */
     .day-card.mob-present { background: rgba(52,211,153,0.14) !important; border-color: rgba(52,211,153,0.3) !important; }
     .day-card.mob-partial  { background: rgba(245,158,11,0.14) !important; border-color: rgba(245,158,11,0.3) !important; }
     .day-card.mob-absent   { background: rgba(239,68,68,0.09) !important;  border-color: rgba(239,68,68,0.2) !important; }
-
-    /* ── Bottom-sheet modal ── */
     #action-modal { align-items: flex-end !important; justify-content: center !important; padding: 0 !important; }
     .modal-content {
       width: 100% !important;
@@ -455,28 +430,21 @@
               🏖️ Mark Leave
             </button>
           </div>
-          {% comment %}Take Comp-Off — shown only when comp-offs are available AND this day is NOT already a comp-off leave{% endcomment %}
           <button type="submit" name="action" id="btn-consume-compoff" value="consume_compoff"
             style="background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.25);color:#a78bfa;font-size:0.75rem;cursor:pointer;border-radius:6px;padding:4px 10px;display:{% if monthly_summary.available_compoffs > 0 %}inline-flex{% else %}none{% endif %};">
             🎟️ Take Comp-Off
           </button>
-
-          {% comment %}Cancel Comp-Off — shown only when this specific day has a consumed comp-off{% endcomment %}
           <button type="submit" name="action" value="cancel_compoff"
             id="btn-cancel-compoff"
             style="background:rgba(244,63,94,0.1);border:1px solid rgba(244,63,94,0.2);color:#f43f5e;font-size:0.75rem;cursor:pointer;border-radius:6px;padding:4px 10px;display:none;"
             onclick="return confirm('Cancel comp-off for this day? It will be returned to your balance.')">
             ↩ Cancel Comp-Off
           </button>
-
-          {% comment %}Two Saturday options — shown when Saturday is eligible (6h+){% endcomment %}
           <button type="submit" name="action" id="btn-claim-compoff" value="claim_compoff"
             style="background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);color:#34d399;font-size:0.75rem;cursor:pointer;border-radius:6px;padding:4px 10px;display:none;"
             title="Bank this Saturday as a comp-off day to use as leave later">
             🏦 Bank as Comp-Off
           </button>
-
-          {% comment %}Remove comp-off — shown when Saturday already has EARNED status{% endcomment %}
           <button type="submit" name="action" id="btn-unclaim-compoff" value="unclaim_compoff"
             style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:#f59e0b;font-size:0.75rem;cursor:pointer;border-radius:6px;padding:4px 10px;display:none;"
             title="Remove comp-off and take pay for this Saturday instead"
@@ -494,7 +462,6 @@
 <div class="roster-header">
   <div>
     <h1 class="month-title">{{ current|date:"F Y" }}</h1>
-    <!-- Month Progress Indicator -->
     <div class="month-progress-container" style="margin-top: 12px; width: 220px; max-width: 100%;">
       <div class="progress-track" style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
         <div class="progress-fill" style="width: {{ monthly_summary.bank_progress_percent|default:50 }}%; 
@@ -571,7 +538,6 @@
 </div>
 
 <div class="glass-roster">
-  <!-- Weekday Headers -->
   <div class="dow-header">Mon</div>
   <div class="dow-header">Tue</div>
   <div class="dow-header">Wed</div>
@@ -599,25 +565,28 @@
            data-is-weekend="{% if cell.date.weekday >= 5 %}true{% endif %}"
            data-weekday="{{ cell.date.weekday }}"
            tabindex="0" role="button" aria-label="Edit attendance for {{ cell.date|date:'d M Y' }}">
-        
-        <div class="day-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-          <span class="day-num" style="{% if cell.date.weekday == 6 %}color: #ff6b6b;{% endif %}">{{ cell.date.day }}</span>
-          {% if cell.date == today %}
-            <span class="today-badge" style="font-size: 0.5rem; background: var(--cyan); color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 800;">TODAY</span>
-          {% endif %}
+
+        <div class="day-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+          <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 3px;">
+            <span class="day-num" style="{% if cell.date.weekday == 6 %}color: #ff6b6b;{% endif %}">{{ cell.date.day }}</span>
+            {% if cell.date == today %}
+              <span style="font-size: 0.5rem; background: var(--cyan); color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 800; line-height: 1.2;">TODAY</span>
+            {% endif %}
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 3px;">
+            {% if cell.is_holiday %}
+              <span style="font-size: 0.55rem; font-weight: 900; color: #ffa500; text-transform: uppercase; letter-spacing: 1px;">{{ cell.holiday_name|default:"Holiday" }}</span>
+            {% elif cell.record.compoff_status == "earned" %}
+              <span style="font-size: 0.55rem; font-weight: 900; color: #34d399; text-transform: uppercase;">🏦 BANKED</span>
+            {% elif cell.record.compoff_status == "consumed" %}
+              <span style="font-size: 0.55rem; font-weight: 900; color: #a78bfa; text-transform: uppercase;">COMP-OFF</span>
+            {% elif cell.record.is_leave %}
+              <span style="font-size: 0.55rem; font-weight: 900; color: #5b8def; text-transform: uppercase;">LEAVE</span>
+            {% elif cell.record.is_compoff_claimable %}
+              <span style="font-size: 0.55rem; font-weight: 900; color: #f59e0b; cursor: help;" title="Click to choose: bank comp-off or keep as paid Saturday">📋 CHOOSE</span>
+            {% endif %}
+          </div>
         </div>
-        
-        {% if cell.is_holiday %}
-          <div class="holiday-tag">{{ cell.holiday_name|default:"Holiday" }}</div>
-        {% elif cell.record.compoff_status == "earned" %}
-          <div class="holiday-tag" style="color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.1); padding: 1px 4px; border-radius: 4px;" title="Comp-off banked — open to change">🏦 BANKED</div>
-        {% elif cell.record.compoff_status == "consumed" %}
-          <div class="holiday-tag" style="color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.3); background: rgba(167, 139, 250, 0.1); padding: 1px 4px; border-radius: 4px;">COMP-OFF</div>
-        {% elif cell.record.is_leave %}
-          <div class="holiday-tag" style="color: #5b8def;">LEAVE</div>
-        {% elif cell.record.is_compoff_claimable %}
-          <div class="holiday-tag" style="color: #f59e0b; cursor: help;" title="Click to choose: bank comp-off or keep as paid Saturday">📋 CHOOSE</div>
-        {% endif %}
 
         {% if cell.record %}
           <div class="day-content">
@@ -677,7 +646,6 @@
     setTimeout(() => { modal.style.display = 'none'; }, 300);
   }
 
-  // Keyboard and Jump navigation
   document.getElementById('month-select')?.addEventListener('change', (e) => {
     window.location.href = `?year={{ current.year }}&month=${e.target.value}`;
   });
@@ -719,14 +687,12 @@
       const content = modal?.querySelector('.modal-content');
       
       if (modal && content) {
-        // Comp-off UI logic
         const isClaimable   = this.dataset.isClaimable === 'true';
         const compoffStatus = this.dataset.compoffStatus;
         const isWeekend     = this.dataset.isWeekend === 'true';
         const hasCheckIn    = !!this.dataset.in;
         const isLeave       = this.dataset.isLeave === 'true';
         const leaveTypeAttr = this.dataset.leaveType || '';
-        // Inject leave type into data attr for JS below
         
         const btnClaim    = document.getElementById('btn-claim-compoff');
         const btnUnclaim  = document.getElementById('btn-unclaim-compoff');
@@ -737,11 +703,9 @@
         const isCompOffLeave = (leaveTypeAttr === 'Comp-Off');
         const isEarned       = (compoffStatus === 'earned');
 
-        // Saturday eligibility
         const isSaturday = isWeekend && this.dataset.weekday === '5';
         const SAT_TARGET = {{ saturday_hours_target|default:6 }};
 
-        // Read hours from already-populated inputs (they were filled above before this runs)
         const inVal  = document.getElementById('input-in')?.value  || this.dataset.in  || '';
         const outVal = document.getElementById('input-out')?.value || this.dataset.out || '';
         let satHours = 0;
@@ -752,27 +716,22 @@
         }
         const effectivelyClaimable = isClaimable || (isSaturday && satHours >= SAT_TARGET);
 
-        // "🏦 Bank as Comp-Off" — show on any eligible Saturday (even if already banked — user can re-confirm)
         if (btnClaim) {
           btnClaim.style.display = effectivelyClaimable ? 'inline-flex' : 'none';
-          // If already earned, grey it out slightly so user knows current state
           btnClaim.style.opacity = isEarned ? '0.5' : '1';
           btnClaim.title = isEarned ? 'Already banked as comp-off' : 'Bank this Saturday as a comp-off day';
         }
 
-        // "💰 Take Pay Instead" — show on any eligible Saturday so user always has the choice
         if (btnUnclaim) {
           btnUnclaim.style.display = effectivelyClaimable ? 'inline-flex' : 'none';
           btnUnclaim.style.opacity = isEarned ? '1' : '0.5';
           btnUnclaim.title = isEarned ? 'Remove comp-off and get paid for this Saturday' : 'Keep as paid Saturday (default)';
         }
 
-        // "🎟️ Take Comp-Off" — workday, no entry, comp-offs in bank
         if (btnConsume) {
           btnConsume.style.display = (!isWeekend && !hasCheckIn && !isLeave && hasBank && !isCompOffLeave) ? 'inline-flex' : 'none';
         }
 
-        // "↩ Cancel Comp-Off" — day already has comp-off leave taken
         if (btnCancel) {
           btnCancel.style.display = isCompOffLeave ? 'inline-flex' : 'none';
         }
@@ -780,7 +739,6 @@
         modal.style.display = 'flex';
         setTimeout(() => { content.style.transform = 'translateY(0)'; }, 10);
 
-        // Re-evaluate comp-off button visibility live when user changes time inputs
         const self = this;
         const updateCompoffBtns = () => {
           const inV  = document.getElementById('input-in')?.value  || '';
@@ -815,7 +773,6 @@
     if (e.target.id === 'action-modal') closeModal();
   });
 
-  // Apply status tints on mobile
   function applyMobileColors() {
     if (window.innerWidth > 768) return;
     document.querySelectorAll('.day-card:not(.other-month)').forEach(card => {
@@ -827,13 +784,10 @@
       if (isLve) { card.classList.add('mob-absent'); return; }
       if (isWkd || isHol) return;
       if (!inTime) {
-        // Workday with no record — mark absent
-        const dayNum = parseInt(card.dataset.date?.split('-')[2]);
         const cardDate = new Date(card.dataset.date);
         if (cardDate <= new Date()) card.classList.add('mob-absent');
         return;
       }
-      // Has check-in: check progress bar percentage
       const bar = card.querySelector('.hours-bar');
       const pct = bar ? parseFloat(bar.dataset.pct || 0) : 100;
       card.classList.add(pct >= 95 ? 'mob-present' : 'mob-partial');
