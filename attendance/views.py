@@ -38,14 +38,13 @@ WEEKLY_TARGET          = float(ATT_CFG.get("weekly_hours_target",  45))
 DAILY_TARGET_HOURS     = float(ATT_CFG.get("daily_hours_target",    9))
 SATURDAY_TARGET_HOURS  = float(ATT_CFG.get("saturday_hours_target", 6))
 
-# Default leave entitlements (Cognizant-style)
 DEFAULT_LEAVE_ENTITLEMENTS = {
     "casual":      13.5,
-    "earned":       0.0,   # accrues monthly
+    "earned":       0.0,
     "sick":         5.0,
     "paternity":    6.0,
     "loss_of_pay":  0.0,
-    "comp_off":     0.0,   # earned by working Saturdays
+    "comp_off":     0.0,
 }
 
 
@@ -58,7 +57,6 @@ def _clean_text(value, limit=MAX_TEXT_FIELD_LENGTH):
 
 
 def _fmt_hhmm(decimal_hours):
-    """Convert decimal hours (e.g. 8.75) to 'HH:MM' string (e.g. '08:45')."""
     if decimal_hours is None:
         return "00:00"
     total_mins = int(round(abs(float(decimal_hours)) * 60))
@@ -68,7 +66,6 @@ def _fmt_hhmm(decimal_hours):
 
 
 def _fmt_duration(decimal_hours, show_sign=False):
-    """Human-readable duration: '8h 45m', '+1h 30m', '-1h 30m'."""
     if decimal_hours is None:
         return "0h"
     is_neg = decimal_hours < 0
@@ -126,7 +123,6 @@ def is_config_holiday(d):
 
 
 def _ensure_leave_balances(user, year):
-    """Create LeaveBalance rows for current year if they don't exist yet."""
     for lt, entitled in DEFAULT_LEAVE_ENTITLEMENTS.items():
         LeaveBalance.objects.get_or_create(
             user=user,
@@ -145,15 +141,6 @@ def _ensure_earnings_config(user):
 
 
 def _calculate_earnings(user, year, month):
-    """
-    Calculate monthly earnings.
-    Weekday present → daily_rate
-    Saturday present:
-      - if saturday_mode == 'pay'     → saturday_rate
-      - if saturday_mode == 'comp_off'→ 0 (comp-off issued instead)
-    Leave day → 0 (LOP) unless it's a holiday
-    Returns dict with breakdown.
-    """
     config = _ensure_earnings_config(user)
     records = AttendanceRecord.objects.filter(user=user, date__year=year, date__month=month)
 
@@ -161,6 +148,15 @@ def _calculate_earnings(user, year, month):
     saturday_days = 0
     lop_days = 0
     compoff_days = 0
+
+    # Saturdays banked as comp-off should NOT count as paid Saturdays
+    banked_saturday_dates = set(
+        CompOffRecord.objects.filter(
+            user=user,
+            worked_date__year=year,
+            worked_date__month=month,
+        ).values_list("worked_date", flat=True)
+    )
 
     for r in records:
         if r.is_holiday:
@@ -171,13 +167,13 @@ def _calculate_earnings(user, year, month):
                 compoff_days += 1
             elif r.leave_type == "Loss of Pay":
                 lop_days += 1
-            # Other leave types (casual/sick/etc.) = paid, don't deduct
             continue
-        if r.check_in:  # actually worked
-            if dow < 5:    # Mon–Fri
+        if r.check_in:
+            if dow < 5:
                 weekday_days += 1
-            elif dow == 5:  # Saturday
-                saturday_days += 1
+            elif dow == 5:  # Saturday — only pay if NOT banked as comp-off
+                if r.date not in banked_saturday_dates:
+                    saturday_days += 1
 
     weekday_earnings  = weekday_days * config.daily_rate
     if config.saturday_mode == "pay":
@@ -202,7 +198,6 @@ def _calculate_earnings(user, year, month):
 
 
 def build_billable_time_entry(record):
-    """Normalize timesheet display/export to the standard billing window."""
     if record.leave_type or record.is_holiday:
         return {
             "in_time":    "LEAVE" if record.leave_type else "HOLIDAY",
@@ -255,7 +250,6 @@ def checkin_checkout_view(request):
     now   = timezone.localtime(timezone.now())
     today = now.date()
 
-    # Ensure leave balances exist for this year
     _ensure_leave_balances(request.user, today.year)
 
     record, created = AttendanceRecord.objects.get_or_create(
@@ -282,7 +276,6 @@ def checkin_checkout_view(request):
         elif action in {"check_out", "checkout"} and record.check_out is None and record.check_in:
             record.check_out = now
             record.save()
-            # Update leave balance if this day was leave
             logger.info("User %s checked out at %s", request.user.username, now.isoformat())
             messages.success(request, f"Check-out successful at {now.strftime('%H:%M')}")
 
@@ -298,7 +291,6 @@ def checkin_checkout_view(request):
                 if check_out_str:
                     co_naive = datetime.strptime(f"{today} {check_out_str}", "%Y-%m-%d %H:%M")
                     co_aware = timezone.make_aware(co_naive)
-                # BUG FIX: validate checkout > checkin
                 if ci_aware and co_aware and co_aware <= ci_aware:
                     error = "Check-out time must be after check-in time."
                 else:
@@ -320,15 +312,13 @@ def checkin_checkout_view(request):
 
         return redirect("checkin_checkout")
 
-    # ── Compute display values ──────────────────────────────
     hours_today        = None
     hours_today_display = None
     if record.check_in and record.check_out:
         delta       = record.check_out - record.check_in
         hours_today = round(max(delta.total_seconds() / 3600.0, 0), 4)
-        hours_today_display = _fmt_hhmm(hours_today)   # "08:45" not "8.75"
+        hours_today_display = _fmt_hhmm(hours_today)
 
-    # Elapsed since check-in (even if not checked out yet)
     elapsed_display = None
     remaining_display = None
     if record.check_in and not record.check_out:
@@ -336,7 +326,6 @@ def checkin_checkout_view(request):
         elapsed_mins = int(round(elapsed_secs / 60.0))
         target_mins = int(round(DAILY_TARGET_HOURS * 60.0))
         remaining_mins = max(target_mins - elapsed_mins, 0)
-        
         elapsed_display = f"{elapsed_mins // 60:02d}:{elapsed_mins % 60:02d}"
         remaining_display = f"{remaining_mins // 60:02d}:{remaining_mins % 60:02d}"
     elif record.check_in and record.check_out:
@@ -354,8 +343,28 @@ def checkin_checkout_view(request):
         expected_dt    = record.check_in + timedelta(hours=DAILY_TARGET_HOURS)
         expected_checkout = timezone.localtime(expected_dt).strftime("%H:%M")
 
-    # Weekly stats
+    # Weekly stats — adjusted target excluding holidays and leave days
     week_start = today - timedelta(days=today.weekday())
+    week_end   = week_start + timedelta(days=6)
+
+    _leave_dates_week = set(
+        AttendanceRecord.objects.filter(
+            user=request.user,
+            date__range=(week_start, week_end),
+        ).exclude(leave_type__isnull=True).exclude(leave_type="").values_list("date", flat=True)
+    )
+    _effective_working_days = 0
+    for _i in range(7):
+        _d = week_start + timedelta(days=_i)
+        if _d.weekday() >= 5:
+            continue
+        if Holiday.objects.filter(date=_d).exists() or is_config_holiday(_d):
+            continue
+        if _d in _leave_dates_week:
+            continue
+        _effective_working_days += 1
+    effective_weekly_target = round(_effective_working_days * DAILY_TARGET_HOURS, 2)
+
     weekly_records = list(
         AttendanceRecord.objects.filter(
             user=request.user,
@@ -368,24 +377,21 @@ def checkin_checkout_view(request):
         sum(max((r.check_out - r.check_in).total_seconds() / 3600.0, 0) for r in completed_week_records), 1
     )
     weekly_total_display = _fmt_hhmm(weekly_total)
-    weekly_total_percent = min(int((weekly_total / WEEKLY_TARGET) * 100), 100) if WEEKLY_TARGET else 0
+    weekly_total_percent = min(int((weekly_total / effective_weekly_target) * 100), 100) if effective_weekly_target else 0
     week_completion_percent = (
         min(int((len(completed_week_records) / len(weekly_records)) * 100), 100)
         if weekly_records else 0
     )
 
-    # Leave balances
     leave_balances = list(LeaveBalance.objects.filter(user=request.user, year=today.year))
-
-    # Earnings this month
     earnings = _calculate_earnings(request.user, today.year, today.month)
 
     context = {
         "record":               record,
-        "hours_today":          hours_today_display,   # "08:45" format
+        "hours_today":          hours_today_display,
         "hours_today_raw":      hours_today,
-        "elapsed_display":      elapsed_display,       # live elapsed (replaces 0.0h on checkin)
-        "remaining_display":    remaining_display,     # time to target
+        "elapsed_display":      elapsed_display,
+        "remaining_display":    remaining_display,
         "check_in_display":     check_in_display,
         "check_out_display":    check_out_display,
         "expected_checkout":    expected_checkout,
@@ -395,7 +401,7 @@ def checkin_checkout_view(request):
         "upcoming_holidays":    list(Holiday.objects.filter(date__gte=today).order_by("date")[:3]),
         "weekly_total":         weekly_total,
         "weekly_total_display": weekly_total_display,
-        "weekly_target":        WEEKLY_TARGET,
+        "weekly_target":        effective_weekly_target,
         "weekly_total_percent": weekly_total_percent,
         "week_completed_days":  len(completed_week_records),
         "week_recorded_days":   len(weekly_records),
@@ -423,13 +429,22 @@ def weekly_summary_view(request):
     df = pd.DataFrame(list(qs))
     summary = {}
 
-    # Working days this week (exclude weekends & holidays)
+    # Working days this week (exclude weekends, holidays, AND leave days)
+    leave_dates_this_week = set(
+        AttendanceRecord.objects.filter(
+            user=request.user,
+            date__range=(start_date, end_date),
+        ).exclude(leave_type__isnull=True).exclude(leave_type="").values_list("date", flat=True)
+    )
+
     working_days = 0
     for i in range(7):
         d = start_date + timedelta(days=i)
         if d.weekday() >= 5:
             continue
         if Holiday.objects.filter(date=d).exists() or is_config_holiday(d):
+            continue
+        if d in leave_dates_this_week:
             continue
         working_days += 1
     weekly_target = round(working_days * DAILY_TARGET_HOURS, 2)
@@ -443,8 +458,19 @@ def weekly_summary_view(request):
         df["total_with_allowance"]  = df["effective_hours"] + df["allowance_hours"]
         df["check_in_time"]         = df["check_in"].dt.strftime("%H:%M").fillna("")
         df["check_out_time"]        = df["check_out"].dt.strftime("%H:%M").fillna("")
-        # BUG FIX: format duration properly
         df["hours_display"]         = df["hours"].apply(_fmt_hhmm)
+
+        # Fix: pandas converts None leave_type to float NaN, which is truthy in Django templates.
+        df["leave_type"] = df["leave_type"].fillna("").astype(str).replace("nan", "")
+
+        def _compute_variance(row):
+            if row["is_holiday"] or (row["leave_type"] not in (None, "")):
+                return 0.0
+            if not row["check_in_time"]:
+                return 0.0
+            return round(float(row["total_with_allowance"]) - DAILY_TARGET_HOURS, 2)
+
+        df["variance"] = df.apply(_compute_variance, axis=1)
 
         weekly_total = df["total_with_allowance"].sum()
         summary = {
@@ -592,7 +618,6 @@ def month_calendar_view(request):
     progress_percent    = min(int((total_hours_worked / target_hours * 100) if target_hours > 0 else 0), 100)
     remaining_hours     = max(target_hours - total_hours_worked, 0)
 
-    # Earnings for this month
     earnings = _calculate_earnings(request.user, year, month)
 
     context = {
@@ -730,7 +755,6 @@ def edit_record_view(request, record_date):
             record.check_in  = None
             record.check_out = None
             record.leave_type = leave_kind
-            # Deduct from leave balance
             leave_type_key = {
                 "Casual Leave":    "casual",
                 "Sick Leave":      "sick",
@@ -757,7 +781,6 @@ def edit_record_view(request, record_date):
                         defaults={"reason": "Saturday Work"},
                     )
                     if created:
-                        # Add to comp_off leave balance
                         lb, _ = LeaveBalance.objects.get_or_create(
                             user=request.user, year=target_date.year, leave_type="comp_off",
                             defaults={"total_entitled": 0},
@@ -779,7 +802,6 @@ def edit_record_view(request, record_date):
                 record.check_in  = None
                 record.check_out = None
                 record.leave_type = "Comp-Off"
-                # Deduct from comp_off balance
                 lb, _ = LeaveBalance.objects.get_or_create(
                     user=request.user, year=target_date.year, leave_type="comp_off",
                     defaults={"total_entitled": 0},
@@ -799,7 +821,6 @@ def edit_record_view(request, record_date):
             if check_out_str:
                 co_naive = datetime.strptime(f"{target_date} {check_out_str}", "%Y-%m-%d %H:%M")
                 co_aware = timezone.make_aware(co_naive)
-            # BUG FIX: validate checkout > checkin
             if ci_aware and co_aware and co_aware <= ci_aware:
                 messages.error(request, "Check-out must be after check-in.")
                 url = reverse("month_calendar")
@@ -965,14 +986,12 @@ def timesheet_view(request):
                     )
         return redirect(f"{reverse('timesheet')}?year={year}&month={month}")
 
-    # Sync derived timesheet records — BUG FIX: use DoesNotExist not hasattr
     att_records = AttendanceRecord.objects.filter(user=request.user, date__year=year, date__month=month)
     for r in att_records:
         if r.check_in:
             try:
-                r.timesheet_derived  # already exists, skip
+                r.timesheet_derived
             except TimesheetRecord.DoesNotExist:
-                # BUG FIX: use correct Saturday target hours
                 day_target = DAILY_TARGET_HOURS if r.date.weekday() < 5 else SATURDAY_TARGET_HOURS
                 TimesheetRecord.objects.create(
                     attendance_record=r,
@@ -1239,7 +1258,7 @@ def compoff_delete_view(request, compoff_id):
 @login_required
 def support_view(request):
     if request.method == "POST":
-        message_body = request.POST.get("message", "")[:2000]  # BUG FIX: cap length
+        message_body = request.POST.get("message", "")[:2000]
         subject      = f"Bug Report / Support Request from {request.user.username}"
         try:
             send_mail(
