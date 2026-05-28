@@ -124,11 +124,26 @@
   @keyframes slideOut { to { transform: translateX(100%); opacity:0; } }
   .toast.hide { animation: slideOut 0.3s ease forwards; }
 
-  @media (max-width: 700px) {
+  /* @media (max-width: 700px) {
     .edit-grid { grid-template-columns: 1fr 1fr; }
     .section-card { padding: 16px; }
     .leave-table th:nth-child(3), .leave-table td:nth-child(3),
     .leave-table th:nth-child(4), .leave-table td:nth-child(4) { display: none; }
+  } */
+  @media (max-width: 700px) {
+    .edit-grid { grid-template-columns: 1fr 1fr; }
+    .section-card { padding: 16px; overflow: hidden; }
+    body { overflow-x: hidden; }
+    /* Hide Used, Entitled, Carry-over columns — keep Type, Available, Edit */
+    .leave-table th:nth-child(3), .leave-table td:nth-child(3),
+    .leave-table th:nth-child(4), .leave-table td:nth-child(4),
+    .leave-table th:nth-child(5), .leave-table td:nth-child(5) { display: none; }
+    .leave-table { table-layout: fixed; width: 100%; }
+    .leave-table th:nth-child(1), .leave-table td:nth-child(1) { width: 55%; }
+    .leave-table th:nth-child(2), .leave-table td:nth-child(2) { width: 25%; }
+    .leave-table th:nth-child(6), .leave-table td:nth-child(6) { width: 20%; }
+    /* Earnings config — stack vertically */
+    .section-card > form > div { grid-template-columns: 1fr !important; }
   }
 </style>
 {% endblock %}
