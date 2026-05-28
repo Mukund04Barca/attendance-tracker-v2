@@ -9,7 +9,10 @@ from rest_framework_simplejwt.views import (
 )
 
 from attendance.views import signup_view
-from attendance.api import AttendanceRecordViewSet, ProfileViewSet
+from attendance.api import (
+    AttendanceRecordViewSet, ProfileViewSet,
+    TodayAPIView, WeeklyAPIView, MonthlyAPIView, LeaveAPIView,
+)
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
@@ -20,7 +23,7 @@ class RateLimitedLoginView(auth_views.LoginView):
 
 def ratelimited_error(request, exception=None):
     response = JsonResponse({
-        "error": "Too Many Requests", 
+        "error": "Too Many Requests",
         "detail": "You have exceeded your rate limit."
     }, status=429)
     response["X-RateLimit-Limit"] = "100"
@@ -45,12 +48,17 @@ urlpatterns = [
     ),
     path("accounts/signup/", signup_view, name="signup"),
     path("accounts/", include("django.contrib.auth.urls")),
-    # Mobile API Routes
-    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path("api/v1/", include(router.urls)),
-    
-    path("robots.txt", TemplateView.as_view(template_name="robots.txt", content_type="text/plain")),
+
+    # Mobile API
+    path("api/token/",         TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/token/refresh/", TokenRefreshView.as_view(),    name="token_refresh"),
+    path("api/today/",         TodayAPIView.as_view(),        name="api_today"),
+    path("api/weekly/",        WeeklyAPIView.as_view(),       name="api_weekly"),
+    path("api/monthly/",       MonthlyAPIView.as_view(),      name="api_monthly"),
+    path("api/leave/",         LeaveAPIView.as_view(),        name="api_leave"),
+    path("api/v1/",            include(router.urls)),
+
+    path("robots.txt",  TemplateView.as_view(template_name="robots.txt",  content_type="text/plain")),
     path("sitemap.xml", TemplateView.as_view(template_name="sitemap.xml", content_type="application/xml")),
 
     path("", include("attendance.urls")),
