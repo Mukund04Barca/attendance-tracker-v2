@@ -1198,7 +1198,8 @@ def timesheet_export_view(request):
     output = BytesIO()
     wb.save(output)
     output.seek(0)
-    fname    = f"Timesheet_{year}_{month:02d}.xlsx"
+    # fname    = f"Timesheet_{year}_{month:02d}.xlsx"
+    fname = f"{request.user.first_name} {request.user.last_name} - NSE Timesheet Entry - {date(year, month, 1).strftime('%B %Y').upper()}.xlsx"
     response = HttpResponse(output.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     response["Content-Disposition"] = f'attachment; filename="{fname}"'
     return response
