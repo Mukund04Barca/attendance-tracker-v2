@@ -89,6 +89,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "csp.middleware.CSPMiddleware",
     "axes.middleware.AxesMiddleware",
+    "attendance_site.middleware.TimesheetSessionMiddleware",
 ]
 
 ROOT_URLCONF = "attendance_site.urls"
