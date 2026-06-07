@@ -7,7 +7,7 @@ from django_apscheduler.jobstores import DjangoJobStore
 from django_apscheduler.models import DjangoJobExecution
 from django_apscheduler import util
 
-from attendance.tasks import backup_db_to_sftp, send_daily_summary_report
+from attendance.tasks import backup_db_to_sftp, send_daily_summary_report, grant_monthly_leave
 
 logger = logging.getLogger("attendance")
 
@@ -47,7 +47,17 @@ class Command(BaseCommand):
         )
         logger.info("Added job 'send_daily_summary_report'.")
 
-        # 3. Cleanup Job Executions - Every week
+        # 3. Monthly Leave Accrual - 1st of every month at 00:05 AM
+        scheduler.add_job(
+            grant_monthly_leave,
+            trigger=CronTrigger(day=1, hour=0, minute=5),
+            id="grant_monthly_leave",
+            max_instances=1,
+            replace_existing=True,
+        )
+        logger.info("Added job 'grant_monthly_leave'.")
+
+        # 4. Cleanup Job Executions - Every week
         scheduler.add_job(
             delete_old_job_executions,
             trigger=CronTrigger(day_of_week="mon", hour="00", minute="00"),
