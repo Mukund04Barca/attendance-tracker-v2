@@ -215,6 +215,25 @@
   .act-name { width: 180px; padding: 8px 12px; }
   .act-sub { width: 100px; text-align: center; padding: 8px; }
   .act-id { width: 90px; text-align: center; padding: 8px; }
+  .act-comment { width: 160px; padding: 8px 12px; }
+
+  .comment-wrapper { position: relative; display: inline-block; width: 100%; }
+  #global-tooltip {
+    display: none;
+    position: fixed;
+    background: #1E293B;
+    color: #E2E8F0;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 360px;
+    z-index: 99999;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    pointer-events: none;
+  }
 
   .cat-pill {
     padding: 3px 8px;
@@ -505,7 +524,7 @@ function escAttr(value) {
 
 function normalizeActivity(act) {
   const categoryText = String(act.category || '');
-  const subText = String(act.sub || '');
+  const subText = String(act.sub || act.comment || '');
   const combined = `${categoryText} ${subText}`.toLowerCase();
   
   let category = 'Development/Analysis/Testing';
@@ -517,11 +536,12 @@ function normalizeActivity(act) {
     ...act,
     category,
     sub: subText || (categoryText.includes('/') ? categoryText.split('/').filter(Boolean).pop() : ''),
+    comment: act.comment || '',
     catClass: categoryClass(category),
     hours: act.hours || {}
   };
 }
-
+  
 function getDaysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
 function getStartDay(y, m) { return new Date(y, m, 1).getDay(); }
 function isWeekend(d, y, m) { const day = new Date(y, m, d).getDay(); return day === 0 || day === 6; }
@@ -620,7 +640,7 @@ function renderTable() {
   html += '<thead><tr style="height: 60px;">';
   html += `<th class="f-col label-col" style="vertical-align:bottom; border-bottom: none;">#</th>`;
   html += `<th class="f-col-2 label-col" style="vertical-align:bottom; border-bottom: none;">Allocation Detail</th>`;
-  html += `<th class="f-col-3 label-col" style="text-align:center !important; vertical-align:bottom; border-bottom: none;">Type</th>`;
+  html += `<th class="f-col-3 label-col" style="text-align:center !important; vertical-align:bottom; border-bottom: none;">Comments</th>`;
   html += `<th class="f-col-4 label-col" style="text-align:center !important; vertical-align:bottom; border-bottom: none;">Artifact</th>`;
 
   const today = new Date(); 
@@ -690,8 +710,8 @@ function renderTable() {
     const catClass = ['cat-sup', 'cat-dev', 'cat-meet', 'cat-test'].includes(act.catClass) ? act.catClass : 'cat-dev';
     html += `<tr class="act-tr" data-act-idx="${actIdx}">`;
     html += `<td class="f-col act-sr"><button type="button" class="delete-row-btn" title="Delete row" aria-label="Delete row ${actIdx + 1}" onclick="deleteActivity(${actIdx})">×</button><div style="margin-top:4px;">${actIdx + 1}</div></td>`;
-    html += `<td class="f-col-2 act-name"><select class="act-input act-select" onchange="updateActivityField(${actIdx}, 'category', this.value)">${categoryOptions(act.category)}</select><input class="act-input" style="margin-top:6px;" value="${escAttr(act.sub)}" placeholder="Artifact detail" onchange="updateActivityField(${actIdx}, 'sub', this.value)"></td>`;
-    html += `<td class="f-col-3 act-sub"><span class="cat-pill ${catClass}">${esc(act.category)}</span></td>`;
+    html += `<td class="f-col-2 act-name"><select class="act-input act-select" onchange="updateActivityField(${actIdx}, 'category', this.value)">${categoryOptions(act.category)}</select><input class="act-input" style="margin-top:6px;" value="${escAttr(act.sub||'')}" placeholder="Artifact detail" onchange="updateActivityField(${actIdx}, 'sub', this.value)"></td>`;
+    html += `<td class="f-col-3 act-sub"><div class="comment-wrapper"><input class="act-input comment-input" style="width:96px;" value="${escAttr(act.comment||'')}" placeholder="Add comment..." data-comment="${escAttr(act.comment||'')}" oninput="this.dataset.comment=this.value;updateActivityField(${actIdx}, 'comment', this.value)" onchange="updateActivityField(${actIdx}, 'comment', this.value)"></div></td>`;
     html += `<td class="f-col-4 act-id"><input class="act-input" value="${escAttr(act.id)}" placeholder="Artifact ID" onchange="updateActivityField(${actIdx}, 'id', this.value)"></td>`;
     
     days.forEach(d => {
@@ -785,6 +805,7 @@ function addNewActivity(type = 'Development') {
     category: cleanCategory,
     catClass: categoryClass(cleanCategory),
     sub: type === 'Testing' ? 'Testing' : type === 'Support' ? 'Support' : type === 'Analysis' ? 'Analysis' : 'Development',
+    comment: "",
     id: "",
     hours: {}
   });
@@ -817,7 +838,7 @@ function renderMobileView() {
         <div style="display:flex; flex-direction:column; gap:8px;">
           ${activities.map((act, idx) => `
             <div style="display:flex; align-items:center; gap:8px; font-size:0.85rem;">
-              <span style="flex:1; color:#94A3B8;">${esc(act.sub)}</span>
+              <span style="flex:1; color:#94A3B8;">${esc(act.category)}${act.comment ? ' — ' + esc(act.comment) : ''}</span>
               <input type="number" step="0.5" value="${escAttr(act.hours[dk]||'')}" 
                      style="width:70px; background:rgba(0,0,0,0.3); border:1px solid var(--border-color); 
                      color:white; padding:8px; border-radius:6px; text-align:center;"
@@ -912,5 +933,35 @@ setInterval(() => {
 }, 5000);
 
 render();
+
+// Global tooltip for comment inputs
+const globalTooltip = document.createElement('div');
+globalTooltip.id = 'global-tooltip';
+document.body.appendChild(globalTooltip);
+
+document.addEventListener('mouseover', function(e) {
+  const input = e.target.closest('.comment-input');
+  if (input && input.dataset.comment && input.dataset.comment.trim()) {
+    globalTooltip.textContent = input.dataset.comment;
+    const rect = input.getBoundingClientRect();
+    globalTooltip.style.display = 'block';
+    // Position below the input, aligned to its left
+    let left = rect.left;
+    let top = rect.bottom + 6;
+    globalTooltip.style.left = left + 'px';
+    globalTooltip.style.top = top + 'px';
+    // Adjust if going off right edge
+    const tooltipRect = globalTooltip.getBoundingClientRect();
+    if (tooltipRect.right > window.innerWidth - 10) {
+      globalTooltip.style.left = (window.innerWidth - tooltipRect.width - 10) + 'px';
+    }
+  }
+});
+
+document.addEventListener('mouseout', function(e) {
+  if (e.target.closest('.comment-input')) {
+    globalTooltip.style.display = 'none';
+  }
+});
 </script>
 {% endblock %}
