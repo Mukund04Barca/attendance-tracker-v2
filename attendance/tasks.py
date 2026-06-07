@@ -6,6 +6,46 @@ from datetime import datetime
 
 logger = logging.getLogger("attendance")
 
+def grant_monthly_leave():
+    """
+    Runs on the 1st of every month.
+    Adds 1.0 Sick Leave and 1.5 Earned Leave to every active user's balance
+    for the current year.
+    """
+    from django.contrib.auth.models import User
+    from attendance.models import LeaveBalance
+
+    today = datetime.today()
+    year = today.year
+
+    SL_MONTHLY = 1.0
+    EL_MONTHLY = 1.5
+
+    users = User.objects.filter(is_active=True)
+    for user in users:
+        # Sick Leave
+        sl, _ = LeaveBalance.objects.get_or_create(
+            user=user, year=year, leave_type="sick",
+            defaults={"total_entitled": 0.0, "used": 0.0, "carried_over": 0.0}
+        )
+        sl.total_entitled = round(sl.total_entitled + SL_MONTHLY, 2)
+        sl.save()
+
+        # Earned Leave
+        el, _ = LeaveBalance.objects.get_or_create(
+            user=user, year=year, leave_type="earned",
+            defaults={"total_entitled": 0.0, "used": 0.0, "carried_over": 0.0}
+        )
+        el.total_entitled = round(el.total_entitled + EL_MONTHLY, 2)
+        el.save()
+
+        logger.info(
+            "Monthly leave granted to %s: +%.1f SL, +%.1f EL (year %d)",
+            user.username, SL_MONTHLY, EL_MONTHLY, year
+        )
+
+    logger.info("Monthly leave accrual complete for %d users.", users.count())
+
 def backup_db_to_sftp():
     """
     Backs up the SQLite database to a remote SFTP server.
