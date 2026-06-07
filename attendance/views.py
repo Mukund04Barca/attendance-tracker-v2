@@ -111,6 +111,7 @@ def _clean_timesheet_activities(raw_activities, num_days):
         cleaned.append({
             "sr":       i + 1,
             "category": _clean_text(act_data.get("category")),
+            "comment":  _clean_text(act_data.get("comment"), 500),
             "sub":      _clean_text(act_data.get("sub"), 500),
             "id":       _clean_text(act_data.get("id"), 100),
             "hours":    hours,
@@ -981,6 +982,7 @@ def timesheet_view(request):
                         srno=act_data.get("sr", i + 1),
                         activity=act_data.get("category", ""),
                         sub_activity=act_data.get("sub", ""),
+                        comments=act_data.get("comment", ""),
                         artifact_id=act_data.get("id", ""),
                         daily_hours=act_data.get("hours", {}),
                     )
@@ -1028,6 +1030,7 @@ def timesheet_view(request):
             "sr":       a.srno,
             "category": a.activity or "Other",
             "catClass": cat_class,
+            "comment":  a.comments or "",
             "sub":      a.sub_activity or "",
             "id":       a.artifact_id  or "",
             "hours":    a.daily_hours,
