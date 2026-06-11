@@ -551,9 +551,7 @@ function isHoliday(d) { return !!holidays[String(d)]; }
 
 function parseTimeToMins(str) {
   if (!str) return NaN;
-  // Strip date portion from ISO datetime: "2026-04-25T09:00:00" → "09:00:00"
   const timePart = str.includes('T') ? str.split('T')[1] : str;
-  // Strip timezone suffix if present: "09:00:00+05:30" → "09:00:00"
   const cleanTime = timePart.split('+')[0].split('Z')[0];
   const parts = cleanTime.split(':').map(Number);
   if (isNaN(parts[0]) || isNaN(parts[1])) return NaN;
@@ -666,7 +664,6 @@ function renderTable() {
 
   html += '<tbody>';
 
-  // Render Time Rows (In / Out)
   const renderTimeRow = (label, key, valCls) => {
     let r = `<tr class="info-tr"><td class="f-col label-col">${label}</td><td class="f-col-2" colspan="3"></td>`;
     days.forEach(d => {
@@ -686,7 +683,6 @@ function renderTable() {
   html += renderTimeRow('In Time', 'in', 'val-in');
   html += renderTimeRow('Out Time', 'out', 'val-out');
 
-  // ESA Row
   html += `<tr class="info-tr esa-tr"><td class="f-col label-col" style="color:var(--accent)">Billable ESA</td><td class="f-col-2" colspan="3"></td>`;
   let esaTotal = 0;
   days.forEach(d => {
@@ -701,18 +697,17 @@ function renderTable() {
   });
   html += `<td class="total-col val-esa">${esaTotal.toFixed(1)}</td></tr>`;
 
-  // Spacer Row
   html += `<tr><td colspan="${days.length + 5}" style="height:12px; background:rgba(255,255,255,0.02)"></td></tr>`;
 
-  // Activity Rows
+  // Activity Rows — FIX: use onblur instead of oninput/onchange to prevent re-render on every keystroke
   activities.forEach((act, actIdx) => {
     const rowTotal = Object.values(act.hours).reduce((s, v) => s + (parseFloat(v) || 0), 0);
     const catClass = ['cat-sup', 'cat-dev', 'cat-meet', 'cat-test'].includes(act.catClass) ? act.catClass : 'cat-dev';
     html += `<tr class="act-tr" data-act-idx="${actIdx}">`;
     html += `<td class="f-col act-sr"><button type="button" class="delete-row-btn" title="Delete row" aria-label="Delete row ${actIdx + 1}" onclick="deleteActivity(${actIdx})">×</button><div style="margin-top:4px;">${actIdx + 1}</div></td>`;
-    html += `<td class="f-col-2 act-name"><select class="act-input act-select" onchange="updateActivityField(${actIdx}, 'category', this.value)">${categoryOptions(act.category)}</select><input class="act-input" style="margin-top:6px;" value="${escAttr(act.sub||'')}" placeholder="Artifact detail" onchange="updateActivityField(${actIdx}, 'sub', this.value)"></td>`;
-    html += `<td class="f-col-3 act-sub"><div class="comment-wrapper"><input class="act-input comment-input" style="width:96px;" value="${escAttr(act.comment||'')}" placeholder="Add comment..." data-comment="${escAttr(act.comment||'')}" oninput="this.dataset.comment=this.value;updateActivityField(${actIdx}, 'comment', this.value)" onchange="updateActivityField(${actIdx}, 'comment', this.value)"></div></td>`;
-    html += `<td class="f-col-4 act-id"><input class="act-input" value="${escAttr(act.id)}" placeholder="Artifact ID" onchange="updateActivityField(${actIdx}, 'id', this.value)"></td>`;
+    html += `<td class="f-col-2 act-name"><select class="act-input act-select" onchange="updateActivityField(${actIdx}, 'category', this.value)">${categoryOptions(act.category)}</select><input class="act-input" style="margin-top:6px;" value="${escAttr(act.sub||'')}" placeholder="Artifact detail" onblur="updateActivityField(${actIdx}, 'sub', this.value)"></td>`;
+    html += `<td class="f-col-3 act-sub"><div class="comment-wrapper"><input class="act-input comment-input" style="width:96px;" value="${escAttr(act.comment||'')}" placeholder="Add comment..." onblur="updateActivityField(${actIdx}, 'comment', this.value)"></div></td>`;
+    html += `<td class="f-col-4 act-id"><input class="act-input" value="${escAttr(act.id)}" placeholder="Artifact ID" onblur="updateActivityField(${actIdx}, 'id', this.value)"></td>`;
     
     days.forEach(d => {
       const dk = String(d);
@@ -724,7 +719,6 @@ function renderTable() {
     html += `<td class="total-col accent">${rowTotal.toFixed(1)}</td></tr>`;
   });
 
-  // Totals Row
   html += `<tr class="info-tr" style="background:rgba(255,255,255,0.02);"><td class="f-col label-col">Day Total</td><td class="f-col-2" colspan="3"></td>`;
   days.forEach(d => {
     const dk = String(d);
@@ -738,13 +732,13 @@ function renderTable() {
 
     if (daySum > 0) {
       if (Math.abs(variance) <= 0.05) {
-        color = '#10B981'; // Green - exact match
+        color = '#10B981';
         icon = '✓';
       } else if (variance > 0) {
-        color = '#F59E0B'; // Amber - over
+        color = '#F59E0B';
         icon = '+';
       } else {
-        color = '#EF4444'; // Red - under
+        color = '#EF4444';
         icon = '−';
       }
     }
@@ -757,7 +751,6 @@ function renderTable() {
   const grandTotal = activities.reduce((s, a) => s + Object.values(a.hours).reduce((x, v) => x + (parseFloat(v) || 0), 0), 0);
   html += `<td class="total-col" style="color:var(--accent)">${grandTotal.toFixed(1)}</td></tr>`;
 
-  // Add Row
   html += `<tr class="add-tr" onclick="addNewActivity()"><td colspan="${days.length + 5}">+ Add New Allocation Row</td></tr>`;
 
   html += '</tbody>';
@@ -818,7 +811,6 @@ function submitTimesheet() {
   document.getElementById('tsForm').submit();
 }
 
-// Mobile Card View Render
 function renderMobileView() {
   const container = document.getElementById('mobileView');
   if (!container || window.innerWidth > 600) return;
@@ -854,7 +846,6 @@ function renderMobileView() {
 
 window.addEventListener('resize', renderMobileView);
 
-// Bulk Fill Feature
 let lastFocusedValue = '';
 document.addEventListener('focusin', (e) => {
   if (e.target.classList.contains('input-hrs')) {
@@ -887,7 +878,6 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Excel-Style Keyboard Navigation
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName !== 'INPUT' || !e.target.classList.contains('input-hrs')) return;
   
@@ -913,7 +903,6 @@ document.addEventListener('keydown', (e) => {
 const originalRender = render;
 render = function() { originalRender(); setTimeout(addBulkFillButtons, 0); renderMobileView(); };
 
-// Set up Draft LocalStorage restoration
 const STORAGE_KEY = `timesheet_draft_${currentYear}_${currentMonth}`;
 const saved = localStorage.getItem(STORAGE_KEY);
 if (saved) {
@@ -934,23 +923,20 @@ setInterval(() => {
 
 render();
 
-// Global tooltip for comment inputs
 const globalTooltip = document.createElement('div');
 globalTooltip.id = 'global-tooltip';
 document.body.appendChild(globalTooltip);
 
 document.addEventListener('mouseover', function(e) {
   const input = e.target.closest('.comment-input');
-  if (input && input.dataset.comment && input.dataset.comment.trim()) {
-    globalTooltip.textContent = input.dataset.comment;
+  if (input && input.value && input.value.trim()) {
+    globalTooltip.textContent = input.value;
     const rect = input.getBoundingClientRect();
     globalTooltip.style.display = 'block';
-    // Position below the input, aligned to its left
     let left = rect.left;
     let top = rect.bottom + 6;
     globalTooltip.style.left = left + 'px';
     globalTooltip.style.top = top + 'px';
-    // Adjust if going off right edge
     const tooltipRect = globalTooltip.getBoundingClientRect();
     if (tooltipRect.right > window.innerWidth - 10) {
       globalTooltip.style.left = (window.innerWidth - tooltipRect.width - 10) + 'px';
